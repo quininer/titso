@@ -8,7 +8,8 @@ tag = hash(mkey, ptag)
 
 key = tag | tag^n
 
-key -> hash(mkey, key + n) -> password
+key -> hash(mkey, key + rule) -> password
+	-> enc(mkey, key, "rule") -> encrypt rule
 	-> enc(mkey, key, "data") -> encrypt data
 
 tag -> enc(mkey, tag, "hint") -> encrypt hint
@@ -17,11 +18,10 @@ tag -> enc(mkey, tag, "hint") -> encrypt hint
 
 distribution
 
-a-z0-9
-A-Z
+0-9
+a-zA-Z
 ,./;'[]=-\`
 ~!@#$%^&*()_+{}|:"<>?
-中文
 
 ===
 

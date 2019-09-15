@@ -1,11 +1,13 @@
 use gimli_hash::{ GimliHash, XofReader };
 
+pub const KEY_LENGTH: usize = 32;
+
 pub struct KeyedHash {
     hasher: GimliHash
 }
 
 impl KeyedHash {
-    pub fn new(key: &[u8; 32]) -> KeyedHash {
+    pub fn new(key: &[u8; KEY_LENGTH]) -> KeyedHash {
         let mut hasher = GimliHash::default();
         hasher.update(b"titso hash");
         hasher.update(key);

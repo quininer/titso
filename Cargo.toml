@@ -8,8 +8,11 @@ edition = "2018"
 
 [dependencies]
 byteorder = "*"
+arrayref = "*"
 rand = "*"
-serde = "*"
+serde = { version = "1", features = ["derive"] }
+serde_bytes = "*"
+serde_cbor = "*"
 toml = "*"
 gimli-permutation = "*"
 gimli-hash = "0.1.5"

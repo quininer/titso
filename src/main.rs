@@ -1,7 +1,6 @@
 mod common;
-mod kdf;
-mod keyedhash;
-mod rng;
+pub mod primitive;
+pub mod core;
 
 fn main() {
     println!("Hello, world!");

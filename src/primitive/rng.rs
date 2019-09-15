@@ -1,22 +1,23 @@
 use rand::{ SeedableRng, CryptoRng, RngCore };
 use gimli_hash::{ GimliHash, XofReader };
 
-pub struct GimliRng {
+
+pub struct HashRng {
     state: XofReader
 }
 
-impl SeedableRng for GimliRng {
+impl SeedableRng for HashRng {
     type Seed = [u8; 32];
 
     fn from_seed(seed: Self::Seed) -> Self {
         let mut hasher = GimliHash::default();
         hasher.update(b"titso rng");
         hasher.update(&seed);
-        GimliRng { state: hasher.xof() }
+        HashRng { state: hasher.xof() }
     }
 }
 
-impl RngCore for GimliRng {
+impl RngCore for HashRng {
     fn next_u32(&mut self) -> u32 {
         let mut buf = [0; 4];
         self.state.squeeze(&mut buf);
@@ -39,10 +40,10 @@ impl RngCore for GimliRng {
     }
 }
 
-impl CryptoRng for GimliRng {}
+impl CryptoRng for HashRng {}
 
-impl From<XofReader> for GimliRng {
-    fn from(xof: XofReader) -> GimliRng {
-        GimliRng { state: xof }
+impl From<XofReader> for HashRng {
+    fn from(xof: XofReader) -> HashRng {
+        HashRng { state: xof }
     }
 }
