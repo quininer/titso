@@ -74,7 +74,7 @@ fn absorb(state: &mut [u32; S], aad: &[u8]) {
         gimli(state);
 
         with(state, |state| {
-            for i in 0..RATE {
+            for i in 0..ALL {
                 state[i] ^= chunk[i];
             }
         });
