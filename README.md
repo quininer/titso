@@ -6,11 +6,10 @@ mkey = dec(mpw, store)
 
 tag = hash(mkey, ptag)
 
-key = tag | tag^n
+key = tag xor tag^n
 
 key -> hash(mkey, key + rule) -> password
-	-> enc(mkey, key, "rule") -> encrypt rule
-	-> enc(mkey, key, "data") -> encrypt data
+	-> enc(mkey, key, "rule" + "data") -> encrypt data
 
 tag -> enc(mkey, tag, "hint") -> encrypt hint
 

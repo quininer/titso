@@ -33,6 +33,7 @@ impl Aead {
 
         // encryption phase
         let mut state = self.state.clone();
+        with(&mut state, |state| state[..NONCE_LENGTH].copy_from_slice(tag));
         state[S - 1] ^= 1;
         encrypt_data(&mut state, m);
 
@@ -44,6 +45,7 @@ impl Aead {
 
         // decryption phase
         let mut state = self.state.clone();
+        with(&mut state, |state| state[..NONCE_LENGTH].copy_from_slice(tag));
         state[S - 1] ^= 1;
         decrypt_data(&mut state, c);
 

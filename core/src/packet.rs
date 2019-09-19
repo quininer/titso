@@ -1,4 +1,3 @@
-use std::error::Error;
 use serde::{ Deserialize, Serialize };
 
 
@@ -9,12 +8,11 @@ pub struct MasterStore {
 }
 
 #[derive(Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
 pub struct Tag([u8; 16]);
 
 #[derive(Deserialize, Serialize)]
 pub struct Packet {
-    nonce: [u8; 16],
-
     #[serde(with = "serde_bytes")]
     data: Vec<u8>,
 
@@ -23,9 +21,14 @@ pub struct Packet {
 
 #[derive(Deserialize, Serialize)]
 pub struct Item {
-    /// encrypted rule
-    rule: Packet,
-    data: Packet
+    password: Option<Type>,
+    data: String
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum Type {
+    Derive(Rule),
+    Fixed(Vec<u8>)
 }
 
 #[derive(Deserialize, Serialize)]
