@@ -6,10 +6,10 @@ mkey = dec(mpw, store)
 
 tag = hash(mkey, ptag)
 
-key = tag xor tag^n
+itag = tag xor tag^n
 
-key -> hash(mkey, key + rule) -> password
-	-> enc(mkey, key, "rule" + "data") -> encrypt data
+itag -> hash(mkey, itag + rule) -> password
+	-> enc(mkey, itag, "data") -> encrypt data
 
 tag -> enc(mkey, tag, "hint") -> encrypt hint
 
@@ -29,3 +29,12 @@ backup and sync
 + salt, store
 + key -> password and encrypt data
 + tag -> encrypt hint
+
+===
+
+roadmap
+
++ cli
++ wasm
++ simple gui
++ hardware

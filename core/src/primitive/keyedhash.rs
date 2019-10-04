@@ -7,10 +7,11 @@ pub struct KeyedHash {
 }
 
 impl KeyedHash {
-    pub fn new(key: &[u8; KEY_LENGTH]) -> KeyedHash {
+    pub fn new(key: &[u8; KEY_LENGTH], tag: &[u8]) -> KeyedHash {
         let mut hasher = GimliHash::default();
         hasher.update(b"titso hash");
         hasher.update(key);
+        hasher.update(tag);
         hasher.fill_block();
         KeyedHash { hasher }
     }

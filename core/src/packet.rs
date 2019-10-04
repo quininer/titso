@@ -2,27 +2,27 @@ use serde::{ Deserialize, Serialize };
 
 
 #[derive(Deserialize, Serialize)]
-pub struct MasterStore {
-    salt: [u8; 32],
-    store: [u8; 32]
+pub struct MasterSecret {
+    pub salt: [u8; 32],
+    pub secret: [u8; 32]
 }
 
 #[derive(Deserialize, Serialize)]
 #[derive(Clone, Copy, Debug)]
-pub struct Tag([u8; 16]);
+pub struct Tag(pub [u8; 16]);
 
 #[derive(Deserialize, Serialize)]
 pub struct Packet {
     #[serde(with = "serde_bytes")]
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 
-    tag: [u8; 16]
+    pub tag: [u8; 16]
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Item {
-    password: Option<Type>,
-    data: String
+    pub password: Type,
+    pub data: String
 }
 
 #[derive(Deserialize, Serialize)]
@@ -33,9 +33,9 @@ pub enum Type {
 
 #[derive(Deserialize, Serialize)]
 pub struct Rule {
-    count: u64,
-    length: u16
+    pub count: u64,
+    pub length: u16
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct Hint(String);
+pub struct Hint(pub String);

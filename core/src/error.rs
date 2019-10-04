@@ -1,14 +1,13 @@
 use snafu::Snafu;
-use crate::db::DataBase;
-use crate::packet::Tag;
 
 
-pub type Result<T, DB> = std::result::Result<T, Error<DB>>;
+pub type Result<T, Kv> = std::result::Result<T, Error<Kv>>;
 
 #[derive(Debug, Snafu)]
-pub enum Error<DB: DataBase> {
-    #[snafu(display("DataBase Error: {}", source))]
-    Db { source: DB::Error },
+#[snafu(visibility = "pub(crate)")]
+pub enum Error<DE: std::error::Error + Send + Sync + 'static> {
+    #[snafu(display("Database Error: {}", source))]
+    Db { source: DE },
 
     #[snafu(display("Decryption Failed"))]
     Decrypt {},
