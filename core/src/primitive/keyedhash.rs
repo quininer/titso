@@ -11,6 +11,7 @@ impl KeyedHash {
         let mut hasher = GimliHash::default();
         hasher.update(b"titso hash");
         hasher.update(key);
+        hasher.update(&tag.len().to_le_bytes());
         hasher.update(tag);
         hasher.fill_block();
         KeyedHash { hasher }

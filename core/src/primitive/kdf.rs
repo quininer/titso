@@ -49,7 +49,7 @@ impl Kdf {
         for i in 0..self.opslimit {
             with(&mut state, |state| {
                 state[..8].copy_from_slice(&i.to_le_bytes());
-                state[8..][..RATE].copy_from_slice(&[0; RATE - 8]);
+                state[8..][..RATE - 8].copy_from_slice(&[0; RATE - 8]);
             });
             gimli(&mut state);
         }

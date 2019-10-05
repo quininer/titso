@@ -1,0 +1,19 @@
+[package]
+name = "titso"
+version = "0.1.0"
+authors = ["quininer <quininer@live.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+titso-core = { path = "../core" }
+async-trait = "*"
+futures-executor-preview = "0.3.0-alpha.19"
+rand = "0.7"
+rkv = "0.10"
+lmdb-rkv = "0.12"
+directories = "2"
+structopt = "*"
+rustyline = "5"
+ttyaskpass = "2"

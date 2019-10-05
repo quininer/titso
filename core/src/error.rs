@@ -9,6 +9,9 @@ pub enum Error<DE: std::error::Error + Send + Sync + 'static> {
     #[snafu(display("Database Error: {}", source))]
     Db { source: DE },
 
+    #[snafu(display("Database not initialized"))]
+    Uninitialized {},
+
     #[snafu(display("Decryption Failed"))]
     Decrypt {},
 

@@ -1,5 +1,6 @@
-use snafu::ResultExt;
+use snafu::{ OptionExt, ResultExt };
 use serde_cbor as cbor;
+use rand_core::{ RngCore, CryptoRng };
 use crate::primitive::kdf::Kdf;
 use crate::primitive::keyedhash::KeyedHash;
 use crate::primitive::aead::Aead;
@@ -14,14 +15,16 @@ pub struct Titso<Kv> {
 }
 
 impl<Kv: KvStore> Titso<Kv> {
-    pub async fn new(kv: Kv, password: &[u8]) -> error::Result<Titso<Kv>, Kv::Error> {
+    pub async fn open(mut kv: Kv, password: &[u8])
+        -> error::Result<Titso<Kv>, Kv::Error>
+    {
         let metadata = kv.open("metadata")
             .await.context(error::Db)?;
         let secret = metadata.get(b"secret")
             .await.context(error::Db)?
-            .unwrap();
+            .context(error::Uninitialized)?;
 
-        let MasterSecret { salt, secret } = cbor::from_slice(secret)
+        let MasterSecret { salt, secret } = cbor::from_slice(&secret)
             .context(error::Cbor)?;
 
         let mut mkey = [0; 32];
@@ -30,6 +33,30 @@ impl<Kv: KvStore> Titso<Kv> {
         for i in 0..32 {
             mkey[i] ^= secret[i];
         }
+
+        Ok(Titso { kv, mkey })
+    }
+
+    pub async fn init<R: RngCore + CryptoRng>(mut kv: Kv, mut rng: R, password: &[u8])
+        -> error::Result<Titso<Kv>, Kv::Error>
+    {
+        let mut salt = [0; 32];
+        let mut mkey = [0; 32];
+        let mut secret = [0; 32];
+        rng.fill_bytes(&mut salt);
+        rng.fill_bytes(&mut mkey);
+
+        Kdf::default().derive(password, &salt, &mut secret);
+
+        for i in 0..32 {
+            secret[i] ^= mkey[i];
+        }
+
+        let secret = cbor::to_vec(&MasterSecret { salt, secret })
+            .context(error::Cbor)?;
+
+        let metadata = kv.open("metadata").await.context(error::Db)?;
+        metadata.put(b"secret", &secret).await.context(error::Db)?;
 
         Ok(Titso { kv, mkey })
     }
@@ -48,13 +75,13 @@ impl<Kv: KvStore> Titso<Kv> {
         Tag(itag)
     }
 
-    pub async fn hint(&self, Tag(itag): Tag) -> error::Result<Option<String>, Kv::Error> {
+    pub async fn hint(&mut self, Tag(itag): Tag) -> error::Result<Option<String>, Kv::Error> {
         let hint = self.kv.open("hint").await.context(error::Db)?;
         let packet = match hint.get(&itag).await.context(error::Db)? {
             Some(packet) => packet,
             None => return Ok(None)
         };
-        let Packet { mut data, tag: atag } = cbor::from_slice(packet)
+        let Packet { mut data, tag: atag } = cbor::from_slice(&packet)
             .context(error::Cbor)?;
 
         if Aead::new(&self.mkey, &itag)
@@ -68,13 +95,13 @@ impl<Kv: KvStore> Titso<Kv> {
         }
     }
 
-    pub async fn get(&self, Tag(itag): Tag) -> error::Result<Option<Item>, Kv::Error> {
+    pub async fn get(&mut self, Tag(itag): Tag) -> error::Result<Option<Item>, Kv::Error> {
         let data = self.kv.open("data").await.context(error::Db)?;
         let packet = match data.get(&itag).await.context(error::Db)? {
             Some(packet) => packet,
             None => return Ok(None)
         };
-        let Packet { mut data, tag: atag } = cbor::from_slice(packet)
+        let Packet { mut data, tag: atag } = cbor::from_slice(&packet)
             .context(error::Cbor)?;
 
         if Aead::new(&self.mkey, &itag)
@@ -88,7 +115,7 @@ impl<Kv: KvStore> Titso<Kv> {
         }
     }
 
-    pub async fn put(&self, Tag(itag): Tag, item: &Item) -> error::Result<(), Kv::Error> {
+    pub async fn put(&mut self, Tag(itag): Tag, item: &Item) -> error::Result<(), Kv::Error> {
         let mut buf = cbor::to_vec(item).context(error::Cbor)?;
         let mut atag = [0; 16];
 
@@ -102,5 +129,18 @@ impl<Kv: KvStore> Titso<Kv> {
         data.put(&itag, &packet).await.context(error::Db)?;
 
         Ok(())
+    }
+
+    pub async fn del(&mut self, Tag(itag): Tag) -> error::Result<bool, Kv::Error> {
+        let data = self.kv.open("data").await.context(error::Db)?;
+        data.del(&itag).await.context(error::Db)
+    }
+
+    pub async fn export(&mut self) {
+        unimplemented!()
+    }
+
+    pub async fn import(&mut self) {
+        unimplemented!()
     }
 }

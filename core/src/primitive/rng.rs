@@ -1,4 +1,4 @@
-use rand::{ SeedableRng, CryptoRng, RngCore };
+use rand_core::{ SeedableRng, CryptoRng, RngCore };
 use gimli_hash::{ GimliHash, XofReader };
 
 
@@ -34,7 +34,7 @@ impl RngCore for HashRng {
         self.state.squeeze(dest);
     }
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
         self.state.squeeze(dest);
         Ok(())
     }
