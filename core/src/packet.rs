@@ -22,7 +22,7 @@ pub struct Packet {
 #[derive(Deserialize, Serialize)]
 pub struct Item {
     pub password: Type,
-    pub data: String
+    pub note: Vec<u8>
 }
 
 #[derive(Deserialize, Serialize)]
