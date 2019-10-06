@@ -17,16 +17,18 @@ type AnyResult<T> = std::result::Result<T, AnyError>;
 
 
 #[derive(StructOpt)]
+#[structopt(setting(structopt::clap::AppSettings::DeriveDisplayOrder))]
 struct Options {
-    #[structopt(short)]
+    #[structopt(short, long)]
     db: Option<PathBuf>,
 
-    #[structopt(short)]
+    #[structopt(short, long)]
     password: Option<String>,
 
     #[structopt(subcommand)]
     action: Action,
 
+    #[structopt(last(true), global(true))]
     tags: Vec<String>
 }
 
@@ -70,6 +72,7 @@ async fn start() -> AnyResult<()> {
         )
         .ok_or(util::msg("Can't find directory"))?;
 
+    let tags = options.tags;
 
     if let Action::Init = options.action {
         fs::create_dir_all(&db_path)?;
@@ -89,7 +92,7 @@ async fn start() -> AnyResult<()> {
 
     let mut stdout = io::stdout();
 
-    writeln!(&mut stdout, "tags: {:?}", &options.tags)?;
+    writeln!(&mut stdout, "tags: {:?}", &tags)?;
 
     match options.action {
         Action::Init => {
@@ -98,13 +101,13 @@ async fn start() -> AnyResult<()> {
         Action::Get { no_password, rule, note } => {
             let mut titso = Titso::open(db, pass).await?;
 
-            let item = titso.get(&options.tags).await?
+            let item = titso.get(&tags).await?
                 .ok_or(util::msg("Tag not found or Password wrong"))?;
 
             if !no_password {
                 match &item.password {
                     packet::Type::Derive(rule) =>
-                        writeln!(&mut stdout, "{}", titso.derive(&options.tags, rule))?,
+                        writeln!(&mut stdout, "{}", titso.derive(&tags, rule))?,
                     packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
@@ -150,12 +153,12 @@ async fn start() -> AnyResult<()> {
                 }
             };
 
-            titso.put(&options.tags, &item).await?;
+            titso.put(&tags, &item).await?;
 
             if !no_password {
                 match &item.password {
                     packet::Type::Derive(rule) =>
-                        writeln!(&mut stdout, "{}", titso.derive(&options.tags, rule))?,
+                        writeln!(&mut stdout, "{}", titso.derive(&tags, rule))?,
                     packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
@@ -163,7 +166,7 @@ async fn start() -> AnyResult<()> {
         Action::Del => {
             let mut titso = Titso::open(db, pass).await?;
 
-            if titso.del(&options.tags).await? {
+            if titso.del(&tags).await? {
                 return Err(util::msg("Tag not found or Password wrong").into());
             }
         },
