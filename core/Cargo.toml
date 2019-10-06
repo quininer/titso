@@ -11,7 +11,7 @@ async-trait = "*"
 snafu = "*"
 byteorder = "*"
 arrayref = "*"
-rand_core = "*"
+rand_core = "0.5"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "*"
 serde_cbor = "*"

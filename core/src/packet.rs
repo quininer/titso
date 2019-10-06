@@ -28,14 +28,12 @@ pub struct Item {
 #[derive(Deserialize, Serialize)]
 pub enum Type {
     Derive(Rule),
-    Fixed(Vec<u8>)
+    Fixed(String)
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Rule {
     pub count: u64,
-    pub length: u16
+    pub length: u16,
+    pub chars: String
 }
-
-#[derive(Deserialize, Serialize)]
-pub struct Hint(pub String);

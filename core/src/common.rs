@@ -1,5 +1,7 @@
 use byteorder::{ ByteOrder, LittleEndian };
+use rand_core::{ RngCore, CryptoRng };
 use gimli_permutation::S;
+use crate::packet::Rule;
 
 
 pub fn with<F>(state: &mut [u32; S], f: F)
@@ -13,4 +15,17 @@ pub fn with<F>(state: &mut [u32; S], f: F)
     LittleEndian::from_slice_u32(state);
     f(transmute(state));
     LittleEndian::from_slice_u32(state);
+}
+
+pub fn generate<R: RngCore + CryptoRng>(rng: &mut R, rule: &Rule) -> String {
+    let chars = rule.chars.chars().collect::<Vec<_>>();
+    (0..rule.length)
+        .map(|_| chars[rng.next_u32() as usize % chars.len()])
+        .collect()
+}
+
+pub fn suggest(chars_len: usize) -> usize {
+    const ENTROPY: f64 = 96.0;
+
+    (ENTROPY / (chars_len as f64).log2()).ceil() as usize
 }

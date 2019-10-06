@@ -3,7 +3,9 @@ use serde_cbor as cbor;
 use rand_core::{ RngCore, CryptoRng };
 use crate::primitive::kdf::Kdf;
 use crate::primitive::keyedhash::KeyedHash;
+use crate::primitive::rng::HashRng;
 use crate::primitive::aead::Aead;
+use crate::common::generate;
 use crate::packet::*;
 use crate::kv::{ KvStore, Table };
 use crate::error;
@@ -73,6 +75,17 @@ impl<Kv: KvStore> Titso<Kv> {
             }
         }
         Tag(itag)
+    }
+
+    pub fn derive(&self, Tag(itag): Tag, rule: &Rule) -> String {
+        let mut hasher = KeyedHash::new(&self.mkey, b"derive");
+        hasher.update(&itag);
+        hasher.update(&rule.count.to_le_bytes());
+        hasher.update(&rule.length.to_le_bytes());
+        hasher.update(&rule.chars.len().to_le_bytes());
+        hasher.update(rule.chars.as_bytes());
+        let mut rng = HashRng::from(hasher.xof());
+        generate(&mut rng, rule)
     }
 
     pub async fn hint(&mut self, Tag(itag): Tag) -> error::Result<Option<String>, Kv::Error> {

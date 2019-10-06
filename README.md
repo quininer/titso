@@ -21,12 +21,14 @@ distribution
 a-zA-Z
 ,./;'[]=-\`
 ~!@#$%^&*()_+{}|:"<>?
+custom ?
 
 ===
 
 backup and sync
 
-+ salt, store
++ salt, secret
+	* sss
 + key -> password and encrypt data
 + tag -> encrypt hint
 

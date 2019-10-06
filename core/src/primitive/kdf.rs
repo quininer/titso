@@ -15,7 +15,7 @@ pub struct Kdf {
 impl Default for Kdf {
     fn default() -> Kdf {
         Kdf {
-            opslimit: 30000,
+            opslimit: 50000,
             memlimit: 1,
             threads: 1,
             hasher: GimliHash::default()
