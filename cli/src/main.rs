@@ -102,7 +102,8 @@ async fn start() -> AnyResult<()> {
 
             if !no_password {
                 match &item.password {
-                    packet::Type::Derive(rule) => writeln!(&mut stdout, "{}", titso.derive(tag, rule))?,
+                    packet::Type::Derive(rule) =>
+                        writeln!(&mut stdout, "{}", titso.derive(tag, rule))?,
                     packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
@@ -133,7 +134,11 @@ async fn start() -> AnyResult<()> {
 
             let password = fixed
                 .map(packet::Type::Fixed)
-                .unwrap_or_else(move || packet::Type::Derive(packet::Rule { count, chars, length }));
+                .unwrap_or_else(move || packet::Type::Derive(packet::Rule {
+                    count,
+                    chars,
+                    length
+                }));
             let item = packet::Item {
                 password,
                 note: if note {
@@ -149,12 +154,20 @@ async fn start() -> AnyResult<()> {
 
             if !no_password {
                 match &item.password {
-                    packet::Type::Derive(rule) => writeln!(&mut stdout, "{}", titso.derive(tag, rule))?,
+                    packet::Type::Derive(rule) =>
+                        writeln!(&mut stdout, "{}", titso.derive(tag, rule))?,
                     packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
         },
-        Action::Del => (),
+        Action::Del => {
+            let mut titso = Titso::open(db, pass).await?;
+
+            let tag = titso.tag(&options.tags);
+            if titso.del(tag).await? {
+                // TODO
+            }
+        },
         Action::Hint => (),
         Action::Import => (),
         Action::Export => ()
