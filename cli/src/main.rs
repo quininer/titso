@@ -89,6 +89,8 @@ async fn start() -> AnyResult<()> {
 
     let mut stdout = io::stdout();
 
+    writeln!(&mut stdout, "tags: {:?}", &options.tags)?;
+
     match options.action {
         Action::Init => {
             Titso::init(db, &mut OsRng, pass).await?;
@@ -96,14 +98,13 @@ async fn start() -> AnyResult<()> {
         Action::Get { no_password, rule, note } => {
             let mut titso = Titso::open(db, pass).await?;
 
-            let tag = titso.tag(&options.tags);
-            let item = titso.get(tag).await?
+            let item = titso.get(&options.tags).await?
                 .ok_or(util::msg("Tag not found or Password wrong"))?;
 
             if !no_password {
                 match &item.password {
                     packet::Type::Derive(rule) =>
-                        writeln!(&mut stdout, "{}", titso.derive(tag, rule))?,
+                        writeln!(&mut stdout, "{}", titso.derive(&options.tags, rule))?,
                     packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
@@ -121,7 +122,6 @@ async fn start() -> AnyResult<()> {
         Action::Put { no_password, fixed, length, chars, count, note } => {
             let mut titso = Titso::open(db, pass).await?;
 
-            let tag = titso.tag(&options.tags);
             let count = count.unwrap_or(0);
             let chars = chars.unwrap_or_else(|| titso_core::chars!{
                 numeric,
@@ -150,12 +150,12 @@ async fn start() -> AnyResult<()> {
                 }
             };
 
-            titso.put(tag, &item).await?;
+            titso.put(&options.tags, &item).await?;
 
             if !no_password {
                 match &item.password {
                     packet::Type::Derive(rule) =>
-                        writeln!(&mut stdout, "{}", titso.derive(tag, rule))?,
+                        writeln!(&mut stdout, "{}", titso.derive(&options.tags, rule))?,
                     packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
@@ -163,9 +163,8 @@ async fn start() -> AnyResult<()> {
         Action::Del => {
             let mut titso = Titso::open(db, pass).await?;
 
-            let tag = titso.tag(&options.tags);
-            if titso.del(tag).await? {
-                // TODO
+            if titso.del(&options.tags).await? {
+                return Err(util::msg("Tag not found or Password wrong").into());
             }
         },
         Action::Hint => (),

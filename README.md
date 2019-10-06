@@ -4,14 +4,16 @@ mpw = pwhash(salt, pw)
 
 mkey = dec(mpw, store)
 
-tag = hash(mkey, ptag)
+store-tag = hash(mkey, tag, "store")
+aead-tag = hash(mkey, tag, "aead")
+kdf-tag = hash(mkey, tag, "kdf")
 
-itag = tag xor tag^n
+store-tag
+	-> hash(mkey, kdf-tag + rule) -> password
+	-> enc(mkey, aead-tag, "data") -> encrypt data
 
-itag -> hash(mkey, itag + rule) -> password
-	-> enc(mkey, itag, "data") -> encrypt data
-
-tag -> enc(mkey, tag, "hint") -> encrypt hint
+store-tag
+	-> enc(mkey, aead-tag, "hint") -> encrypt hint
 
 ===
 

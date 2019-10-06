@@ -63,11 +63,13 @@ impl<Kv: KvStore> Titso<Kv> {
         Ok(Titso { kv, mkey })
     }
 
-    pub fn tag(&self, tags: &[impl AsRef<str>]) -> Tag {
+    fn tag(&self, lable: &str, tags: &[impl AsRef<str>]) -> Tag {
         let mut itag = [0; 16];
         for tag in tags {
             let mut tmp = [0; 16];
             let mut hasher = KeyedHash::new(&self.mkey, b"tag");
+            hasher.update(&lable.len().to_le_bytes());
+            hasher.update(lable.as_bytes());
             hasher.update(tag.as_ref().as_bytes());
             hasher.finalize(&mut tmp);
             for i in 0..16 {
@@ -77,9 +79,10 @@ impl<Kv: KvStore> Titso<Kv> {
         Tag(itag)
     }
 
-    pub fn derive(&self, Tag(itag): Tag, rule: &Rule) -> String {
+    pub fn derive(&self, tags: &[impl AsRef<str>], rule: &Rule) -> String {
         let mut hasher = KeyedHash::new(&self.mkey, b"derive");
-        hasher.update(&itag);
+        let Tag(kdf_tag) = self.tag("kdf", tags);
+        hasher.update(&kdf_tag);
         hasher.update(&rule.count.to_le_bytes());
         hasher.update(&rule.length.to_le_bytes());
         hasher.update(&rule.chars.len().to_le_bytes());
@@ -88,16 +91,19 @@ impl<Kv: KvStore> Titso<Kv> {
         generate(&mut rng, rule)
     }
 
-    pub async fn hint(&mut self, Tag(itag): Tag) -> error::Result<Option<String>, Kv::Error> {
+    pub async fn hint(&mut self, tags: &[impl AsRef<str>]) -> error::Result<Option<String>, Kv::Error> {
+        let Tag(store_tag) = self.tag("store", tags);
+
         let hint = self.kv.open("hint").await.context(error::Db)?;
-        let packet = match hint.get(&itag).await.context(error::Db)? {
+        let packet = match hint.get(&store_tag).await.context(error::Db)? {
             Some(packet) => packet,
             None => return Ok(None)
         };
         let Packet { mut data, tag: atag } = cbor::from_slice(&packet)
             .context(error::Cbor)?;
 
-        if Aead::new(&self.mkey, &itag)
+        let Tag(aead_tag) = self.tag("aead", tags);
+        if Aead::new(&self.mkey, &aead_tag)
             .decrypt(b"hint", &mut data, &atag)
         {
             cbor::from_slice(&data)
@@ -108,16 +114,19 @@ impl<Kv: KvStore> Titso<Kv> {
         }
     }
 
-    pub async fn get(&mut self, Tag(itag): Tag) -> error::Result<Option<Item>, Kv::Error> {
+    pub async fn get(&mut self, tags: &[impl AsRef<str>]) -> error::Result<Option<Item>, Kv::Error> {
+        let Tag(store_tag) = self.tag("store", tags);
+
         let data = self.kv.open("data").await.context(error::Db)?;
-        let packet = match data.get(&itag).await.context(error::Db)? {
+        let packet = match data.get(&store_tag).await.context(error::Db)? {
             Some(packet) => packet,
             None => return Ok(None)
         };
         let Packet { mut data, tag: atag } = cbor::from_slice(&packet)
             .context(error::Cbor)?;
 
-        if Aead::new(&self.mkey, &itag)
+        let Tag(aead_tag) = self.tag("aead", tags);
+        if Aead::new(&self.mkey, &aead_tag)
             .decrypt(b"data", &mut data, &atag)
         {
             cbor::from_slice(&data)
@@ -128,25 +137,28 @@ impl<Kv: KvStore> Titso<Kv> {
         }
     }
 
-    pub async fn put(&mut self, Tag(itag): Tag, item: &Item) -> error::Result<(), Kv::Error> {
+    pub async fn put(&mut self, tags: &[impl AsRef<str>], item: &Item) -> error::Result<(), Kv::Error> {
+        let Tag(aead_tag) = self.tag("aead", tags);
         let mut buf = cbor::to_vec(item).context(error::Cbor)?;
         let mut atag = [0; 16];
 
-        Aead::new(&self.mkey, &itag)
+        Aead::new(&self.mkey, &aead_tag)
             .encrypt(b"data", &mut buf, &mut atag);
 
         let packet = Packet { data: buf, tag: atag };
         let packet = cbor::to_vec(&packet).context(error::Cbor)?;
 
+        let Tag(store_tag) = self.tag("store", tags);
         let data = self.kv.open("data").await.context(error::Db)?;
-        data.put(&itag, &packet).await.context(error::Db)?;
+        data.put(&store_tag, &packet).await.context(error::Db)?;
 
         Ok(())
     }
 
-    pub async fn del(&mut self, Tag(itag): Tag) -> error::Result<bool, Kv::Error> {
+    pub async fn del(&mut self, tags: &[impl AsRef<str>]) -> error::Result<bool, Kv::Error> {
+        let Tag(store_tag) = self.tag("store", tags);
         let data = self.kv.open("data").await.context(error::Db)?;
-        data.del(&itag).await.context(error::Db)
+        data.del(&store_tag).await.context(error::Db)
     }
 
     pub async fn export(&mut self) {
