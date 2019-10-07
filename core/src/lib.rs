@@ -181,12 +181,4 @@ impl<Kv: KvStore> Titso<Kv> {
         let data = self.kv.open("data").await.context(error::Db)?;
         data.del(&store_tag).await.context(error::Db)
     }
-
-    pub async fn export(&self) {
-        unimplemented!()
-    }
-
-    pub async fn import(&self) {
-        unimplemented!()
-    }
 }

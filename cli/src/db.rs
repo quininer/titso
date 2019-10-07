@@ -14,8 +14,8 @@ pub struct RkvStore {
 }
 
 pub struct Store {
-    db: Arc<Rkv>,
-    store: SingleStore
+    pub db: Arc<Rkv>,
+    pub store: SingleStore
 }
 
 pub struct StoreError(pub rkv::StoreError);
@@ -77,19 +77,6 @@ impl kv::Table<StoreError> for Store {
                 rkv::StoreError::LmdbError(lmdb::Error::NotFound) => Ok(false),
                 err => Err(err.into())
             }
-        }
-    }
-
-    async fn cas(&self, key: &[u8], old: &[u8], new: &[u8]) -> Result<Option<Vec<u8>>, StoreError> {
-        let mut writer = self.db.write()?;
-        match self.store.get(&writer, key)? {
-            Some(rkv::Value::Blob(val)) if val == old => {
-                let val = val.to_owned();
-                self.store.put(&mut writer, key, &rkv::Value::Blob(new))?;
-                writer.commit()?;
-                Ok(Some(val))
-            },
-            _ => Ok(None)
         }
     }
 }
