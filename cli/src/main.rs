@@ -99,7 +99,7 @@ async fn start() -> AnyResult<()> {
             Titso::init(db, &mut OsRng, pass).await?;
         },
         Action::Get { no_password, rule, note } => {
-            let mut titso = Titso::open(db, pass).await?;
+            let titso = Titso::open(db, pass).await?;
 
             let item = titso.get(&tags).await?
                 .ok_or(util::msg("Tag not found or Password wrong"))?;
@@ -123,7 +123,7 @@ async fn start() -> AnyResult<()> {
             }
         },
         Action::Put { no_password, fixed, length, chars, count, note } => {
-            let mut titso = Titso::open(db, pass).await?;
+            let titso = Titso::open(db, pass).await?;
 
             let count = count.unwrap_or(0);
             let chars = chars.unwrap_or_else(|| titso_core::chars!{
@@ -164,7 +164,7 @@ async fn start() -> AnyResult<()> {
             }
         },
         Action::Del => {
-            let mut titso = Titso::open(db, pass).await?;
+            let titso = Titso::open(db, pass).await?;
 
             if titso.del(&tags).await? {
                 return Err(util::msg("Tag not found or Password wrong").into());

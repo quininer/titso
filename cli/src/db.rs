@@ -1,5 +1,5 @@
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{ Arc, Mutex };
 use std::path::Path;
 use std::error::Error;
 use std::collections::btree_map::{ BTreeMap, Entry };
@@ -10,7 +10,7 @@ use titso_core::kv;
 
 pub struct RkvStore {
     db: Arc<Rkv>,
-    cache: BTreeMap<Box<str>, SingleStore>
+    cache: Mutex<BTreeMap<Box<str>, SingleStore>>
 }
 
 pub struct Store {
@@ -23,7 +23,10 @@ pub struct StoreError(pub rkv::StoreError);
 impl RkvStore {
     pub fn new(path: &Path) -> Result<RkvStore, StoreError> {
         let rkv = Rkv::new(path)?;
-        Ok(RkvStore { db: Arc::new(rkv), cache: BTreeMap::new() })
+        Ok(RkvStore {
+            db: Arc::new(rkv),
+            cache: Mutex::new(BTreeMap::new())
+        })
     }
 }
 
@@ -32,8 +35,9 @@ impl kv::KvStore for RkvStore {
     type Table = Store;
     type Error = StoreError;
 
-    async fn open(&mut self, name: &str) -> Result<Self::Table, Self::Error> {
-        let store = match self.cache.entry(Box::from(name)) {
+    async fn open(&self, name: &str) -> Result<Self::Table, Self::Error> {
+        let mut cache = self.cache.lock().unwrap();
+        let store = match cache.entry(Box::from(name)) {
             Entry::Vacant(entry) => {
                 let store = self.db.open_single(name, StoreOptions::create())?;
                 entry.insert(store).clone()
