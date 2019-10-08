@@ -9,11 +9,8 @@ aead-tag = hash(mkey, tag, "aead")
 kdf-tag = hash(mkey, tag, "kdf")
 
 store-tag
-	-> hash(mkey, kdf-tag + rule) -> password
-	-> enc(mkey, aead-tag, "data") -> encrypt data
-
-store-tag
-	-> enc(mkey, aead-tag, "hint") -> encrypt hint
+	=> hash(mkey, kdf-tag + rule) -> password
+	=> enc(mkey, aead-tag, "data") -> encrypt data
 
 ===
 

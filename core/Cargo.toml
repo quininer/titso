@@ -13,8 +13,6 @@ byteorder = "*"
 arrayref = "*"
 rand_core = "0.5"
 serde = { version = "1", features = ["derive"] }
-serde_bytes = "*"
 serde_cbor = "*"
 gimli-permutation = "*"
 gimli-hash = "0.1.5"
-gimli-aead = "*"

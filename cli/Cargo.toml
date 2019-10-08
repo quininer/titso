@@ -8,11 +8,11 @@ edition = "2018"
 
 [dependencies]
 titso-core = { path = "../core" }
+anyhow = "*"
 async-trait = "*"
 futures-executor-preview = "0.3.0-alpha.19"
 rand = "0.7"
 rkv = "0.10"
-lmdb-rkv = "0.12"
 directories = "2"
 structopt = "*"
 ttyaskpass = "2"

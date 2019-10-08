@@ -1,19 +1,17 @@
 mod util;
-mod db;
+mod titso;
 
 use std::fs;
 use std::io::{ self, Read, Write };
 use std::path::PathBuf;
-use rand::rngs::OsRng;
-use futures_executor::block_on;
+use anyhow::anyhow;
+use rkv::Rkv;
 use structopt::StructOpt;
 use directories::ProjectDirs;
 use ttyaskpass::AskPass;
-use titso_core::{ Titso, packet };
-use db::RkvStore;
-
-type AnyError = Box<dyn std::error::Error + Send + Sync + 'static>;
-type AnyResult<T> = std::result::Result<T, AnyError>;
+use titso_core::packet::*;
+use crate::util::StoreError;
+use crate::titso::Titso;
 
 
 #[derive(StructOpt)]
@@ -38,9 +36,9 @@ enum Action {
     Get {
         #[structopt(long)]
         no_password: bool,
-        #[structopt(long)]
+        #[structopt(short, long)]
         rule: bool,
-        #[structopt(long)]
+        #[structopt(short, long)]
         note: bool,
     },
     Put {
@@ -50,11 +48,11 @@ enum Action {
         fixed: Option<String>,
         #[structopt(long)]
         chars: Option<String>,
-        #[structopt(long)]
+        #[structopt(short, long)]
         length: Option<u16>,
-        #[structopt(long)]
+        #[structopt(short, long)]
         count: Option<u64>,
-        #[structopt(long)]
+        #[structopt(short, long)]
         note: bool
     },
     Del,
@@ -63,14 +61,14 @@ enum Action {
     Export
 }
 
-async fn start() -> AnyResult<()> {
+fn main() -> anyhow::Result<()> {
     let options = Options::from_args();
 
     let db_path = options.db
         .or_else(|| ProjectDirs::from("", "", env!("CARGO_PKG_NAME"))
             .map(|dir| dir.config_dir().to_owned())
         )
-        .ok_or(util::msg("Can't find directory"))?;
+        .ok_or(anyhow!("Can't find directory"))?;
 
     let tags = options.tags;
 
@@ -78,7 +76,8 @@ async fn start() -> AnyResult<()> {
         fs::create_dir_all(&db_path)?;
     }
 
-    let db = RkvStore::new(&db_path)?;
+    let db = Rkv::new(&db_path)
+        .map_err(StoreError)?;
     let mut cli = AskPass::new(vec![0; 256].into_boxed_slice());
 
     let pass = if let Some(pass) = options.password
@@ -96,23 +95,21 @@ async fn start() -> AnyResult<()> {
 
     match options.action {
         Action::Init => {
-            Titso::init(db, &mut OsRng, pass).await?;
+            let _ = Titso::init(&db, pass)?;
         },
         Action::Get { no_password, rule, note } => {
-            let titso = Titso::open(db, pass).await?;
-
-            let item = titso.get(&tags).await?
-                .ok_or(util::msg("Tag not found or Password wrong"))?;
+            let titso = Titso::open(&db, pass)?;
+            let item = titso.get(&tags)?;
 
             if !no_password {
                 match &item.password {
-                    packet::Type::Derive(rule) =>
+                    Type::Derive(rule) =>
                         writeln!(&mut stdout, "{}", titso.derive(&tags, rule))?,
-                    packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
+                    Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
 
-            if let (packet::Type::Derive(rule), true) = (&item.password, rule) {
+            if let (Type::Derive(rule), true) = (&item.password, rule) {
                 writeln!(&mut stdout, "count: {}", rule.count)?;
                 writeln!(&mut stdout, "chars: {:?}", rule.chars)?;
                 writeln!(&mut stdout, "length: {}", rule.length)?;
@@ -123,7 +120,7 @@ async fn start() -> AnyResult<()> {
             }
         },
         Action::Put { no_password, fixed, length, chars, count, note } => {
-            let titso = Titso::open(db, pass).await?;
+            let titso = Titso::open(&db, pass)?;
 
             let count = count.unwrap_or(0);
             let chars = chars.unwrap_or_else(|| titso_core::chars!{
@@ -136,13 +133,13 @@ async fn start() -> AnyResult<()> {
                 .unwrap_or_else(|| titso_core::suggest(chars.len()) as u16);
 
             let password = fixed
-                .map(packet::Type::Fixed)
-                .unwrap_or_else(move || packet::Type::Derive(packet::Rule {
+                .map(Type::Fixed)
+                .unwrap_or_else(move || Type::Derive(Rule {
                     count,
                     chars,
                     length
                 }));
-            let item = packet::Item {
+            let item = Item {
                 password,
                 note: if note {
                     let mut buf = Vec::new();
@@ -153,22 +150,19 @@ async fn start() -> AnyResult<()> {
                 }
             };
 
-            titso.put(&tags, &item).await?;
+            titso.put(&tags, &item)?;
 
             if !no_password {
                 match &item.password {
-                    packet::Type::Derive(rule) =>
+                    Type::Derive(rule) =>
                         writeln!(&mut stdout, "{}", titso.derive(&tags, rule))?,
-                    packet::Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
+                    Type::Fixed(pass) => writeln!(&mut stdout, "{}", pass)?
                 }
             }
         },
         Action::Del => {
-            let titso = Titso::open(db, pass).await?;
-
-            if titso.del(&tags).await? {
-                return Err(util::msg("Tag not found or Password wrong").into());
-            }
+            let titso = Titso::open(&db, pass)?;
+            titso.del(&tags)?;
         },
         Action::Hint => (),
         Action::Import => (),
@@ -178,8 +172,4 @@ async fn start() -> AnyResult<()> {
     // TODO
 
     Ok(())
-}
-
-fn main() -> AnyResult<()> {
-    block_on(start())
 }

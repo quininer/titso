@@ -1,7 +1,7 @@
 use serde::{ Deserialize, Serialize };
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct MasterSecret {
     pub salt: [u8; 32],
     pub secret: [u8; 32]
@@ -10,14 +10,6 @@ pub struct MasterSecret {
 #[derive(Deserialize, Serialize)]
 #[derive(Clone, Copy, Debug)]
 pub struct Tag(pub [u8; 16]);
-
-#[derive(Deserialize, Serialize)]
-pub struct Packet {
-    #[serde(with = "serde_bytes")]
-    pub data: Vec<u8>,
-
-    pub tag: [u8; 16]
-}
 
 #[derive(Deserialize, Serialize)]
 pub struct Item {

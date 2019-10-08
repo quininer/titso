@@ -1,17 +1,11 @@
 use snafu::Snafu;
 
 
-pub type Result<T, Kv> = std::result::Result<T, Error<Kv>>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility = "pub(crate)")]
-pub enum Error<DE: std::error::Error + Send + Sync + 'static> {
-    #[snafu(display("Database Error: {}", source))]
-    Db { source: DE },
-
-    #[snafu(display("Database not initialized"))]
-    Uninitialized {},
-
+pub enum Error {
     #[snafu(display("Decryption Failed"))]
     Decrypt {},
 
