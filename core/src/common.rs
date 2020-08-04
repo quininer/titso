@@ -4,6 +4,7 @@ use gimli_permutation::S;
 use crate::packet::Rule;
 
 
+#[inline]
 pub fn with<F>(state: &mut [u32; S], f: F)
     where F: FnOnce(&mut [u8; S * 4])
 {
@@ -18,7 +19,7 @@ pub fn with<F>(state: &mut [u32; S], f: F)
 }
 
 pub fn generate<R: RngCore + CryptoRng>(rng: &mut R, rule: &Rule) -> String {
-    let chars = rule.chars.chars().collect::<Vec<_>>();
+    let chars = &rule.chars;
     (0..rule.length)
         .map(|_| chars[rng.next_u32() as usize % chars.len()])
         .collect()

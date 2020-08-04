@@ -3,8 +3,8 @@ use serde::{ Deserialize, Serialize };
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct MasterSecret {
-    pub salt: [u8; 32],
-    pub secret: [u8; 32]
+    pub(crate) salt: [u8; 32],
+    pub(crate) secret: [u8; 32]
 }
 
 #[derive(Deserialize, Serialize)]
@@ -27,5 +27,5 @@ pub enum Type {
 pub struct Rule {
     pub count: u64,
     pub length: u16,
-    pub chars: String
+    pub chars: Vec<char>
 }

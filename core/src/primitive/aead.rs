@@ -26,13 +26,13 @@ impl Aead {
 
     pub fn encrypt(&self, aad: &[u8], m: &mut [u8], tag: &mut [u8; TAG_LENGTH]) {
         // absorption phase
-        let mut state = self.state.clone();
+        let mut state = self.state;
         absorb(&mut state, aad);
         absorb(&mut state, m);
         finalise(&mut state, aad.len(), m.len(), tag);
 
         // encryption phase
-        let mut state = self.state.clone();
+        let mut state = self.state;
         with(&mut state, |state| state[..NONCE_LENGTH].copy_from_slice(tag));
         state[S - 1] ^= 1;
         encrypt_data(&mut state, m);
@@ -44,13 +44,13 @@ impl Aead {
         let mut tag2 = [0; TAG_LENGTH];
 
         // decryption phase
-        let mut state = self.state.clone();
+        let mut state = self.state;
         with(&mut state, |state| state[..NONCE_LENGTH].copy_from_slice(tag));
         state[S - 1] ^= 1;
         decrypt_data(&mut state, c);
 
         // absorption phase
-        let mut state = self.state.clone();
+        let mut state = self.state;
         absorb(&mut state, aad);
         absorb(&mut state, c);
         finalise(&mut state, aad.len(), c.len(), &mut tag2);
@@ -83,7 +83,7 @@ fn absorb(state: &mut [u32; S], aad: &[u8]) {
     }
 
     let mut iter = aad.chunks_exact(ALL);
-    while let Some(chunk) = iter.next() {
+    for chunk in &mut iter {
         let chunk = array_ref!(chunk, 0, ALL);
         absorb_block(state, chunk);
     }
@@ -124,7 +124,7 @@ fn encrypt_data(state: &mut [u32; S], m: &mut [u8]) {
     }
 
     let mut iter = m.chunks_exact_mut(RATE);
-    while let Some(chunk) = iter.next() {
+    for chunk in &mut iter {
         let chunk = array_mut_ref!(chunk, 0, RATE);
         encrypt_block(state, chunk);
     }
@@ -156,7 +156,7 @@ fn decrypt_data(state: &mut [u32; S], c: &mut [u8]) {
     }
 
     let mut iter = c.chunks_exact_mut(RATE);
-    while let Some(chunk) = iter.next() {
+    for chunk in &mut iter {
         let chunk = array_mut_ref!(chunk, 0, RATE);
         decrypt_block(state, chunk);
     }

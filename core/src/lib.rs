@@ -37,7 +37,7 @@ macro_rules! chars {
 
 
 pub struct Titso {
-    mkey: [u8; 32]
+    mkey: Box<[u8; 32]>
 }
 
 impl Titso {
@@ -45,8 +45,8 @@ impl Titso {
         let MasterSecret { salt, secret } = cbor::from_slice(buf)
             .context(error::Cbor)?;
 
-        let mut mkey = [0; 32];
-        Kdf::default().derive(password, &salt, &mut mkey);
+        let mut mkey = Box::new([0; 32]);
+        Kdf::default().derive(password, &salt, &mut *mkey);
 
         for i in 0..32 {
             mkey[i] ^= secret[i];
@@ -58,14 +58,14 @@ impl Titso {
     pub fn init<R: RngCore + CryptoRng>(mut rng: R, password: &[u8])
         -> error::Result<(Titso, Vec<u8>)>
     {
+        let mut mkey = Box::new([0; 32]);
         let mut salt = [0; 32];
-        let mut mkey = [0; 32];
         let mut secret = [0; 32];
         rng.fill_bytes(&mut salt);
-        rng.fill_bytes(&mut mkey);
+        rng.fill_bytes(&mut *mkey);
 
         Kdf::default()
-            .derive(password, &mut salt, &mut secret);
+            .derive(password, &salt, &mut secret);
 
         for i in 0..32 {
             secret[i] ^= mkey[i];
@@ -103,8 +103,16 @@ impl Titso {
         hasher.update(&kdf_tag);
         hasher.update(&rule.count.to_le_bytes());
         hasher.update(&rule.length.to_le_bytes());
-        hasher.update(&rule.chars.len().to_le_bytes());
-        hasher.update(rule.chars.as_bytes());
+        hasher.update(&rule.chars.iter()
+            .map(|c| c.len_utf8() as u32)
+            .sum::<u32>()
+            .to_le_bytes()
+        );
+        for c in &rule.chars {
+            let mut buf = [0; 4];
+            c.encode_utf8(&mut buf);
+            hasher.update(&buf);
+        }
         let mut rng = HashRng::from(hasher.xof());
         generate(&mut rng, rule)
     }

@@ -1,5 +1,5 @@
 [package]
-name = "titso"
+name = "titso-web"
 version = "0.1.0"
 authors = ["quininer <quininer@live.com>"]
 edition = "2018"
@@ -8,11 +8,10 @@ edition = "2018"
 
 [dependencies]
 titso-core = { path = "../core" }
-anyhow = "*"
-async-trait = "*"
-futures-executor-preview = "0.3.0-alpha.19"
-rand = "0.7"
-rkv = "0.10"
-directories = "2"
-structopt = "*"
-ttyaskpass = "2"
+
+wasm-bindgen = "*"
+wee_alloc = "0.4"
+js-sys = "*"
+web-sys = { version = "0.3", features = [ "Document", "HtmlButtonElement", "HtmlTextAreaElement" ] }
+kvdb-web = "*"
+gloo = "*"
