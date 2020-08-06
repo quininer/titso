@@ -9,9 +9,13 @@ edition = "2018"
 [dependencies]
 snafu = "0.6"
 byteorder = "1"
+once_cell = "1"
 arrayref = "0.3"
+getrandom = "*"
 rand_core = "0.5"
 serde = { version = "1", features = ["derive"] }
 serde_cbor = "0.11"
+serde_bytes = "0.11"
 gimli-permutation = "0.1"
 gimli-hash = "0.1.5"
+seckey = { version = "0.11.1", default-features = false, features = [ "use_std" ] }

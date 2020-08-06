@@ -3,6 +3,7 @@
 use std::mem;
 use arrayref::{ array_ref, array_mut_ref };
 use gimli_permutation::{ gimli, S };
+use seckey::{ zero, CmpKey };
 use crate::common::with;
 
 pub const ALL: usize = 48;
@@ -37,7 +38,7 @@ impl Aead {
         state[S - 1] ^= 1;
         encrypt_data(&mut state, m);
 
-        // TODO zero state
+        with(&mut state, |state| zero(&mut state[..]));
     }
 
     pub fn decrypt(&self, aad: &[u8], c: &mut [u8], tag: &[u8; TAG_LENGTH]) -> bool {
@@ -55,15 +56,14 @@ impl Aead {
         absorb(&mut state, c);
         finalise(&mut state, aad.len(), c.len(), &mut tag2);
 
-        // TODO zero state
-        // TODO ct eq
+        with(&mut state, |state| zero(&mut state[..]));
 
         // verification phase
-        tag == &tag2
+        CmpKey(tag) == &tag2
     }
 }
 
-fn init(state: &mut [u32; S], key: &[u8; KEY_LENGTH], nonce: &[u8; NONCE_LENGTH]) {
+pub fn init(state: &mut [u32; S], key: &[u8; KEY_LENGTH], nonce: &[u8; NONCE_LENGTH]) {
     with(state, |state| {
         state[..NONCE_LENGTH].copy_from_slice(nonce);
         state[NONCE_LENGTH..].copy_from_slice(key);
@@ -110,7 +110,7 @@ fn finalise(state: &mut [u32; S], hlen: usize, mlen: usize, tag: &mut [u8; TAG_L
     with(state, |state| tag.copy_from_slice(&state[..TAG_LENGTH]));
 }
 
-fn encrypt_data(state: &mut [u32; S], m: &mut [u8]) {
+pub(crate) fn encrypt_data(state: &mut [u32; S], m: &mut [u8]) {
     #[inline]
     fn encrypt_block(state: &mut [u32; S], chunk: &mut [u8; RATE]) {
         gimli(state);

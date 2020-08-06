@@ -1,5 +1,6 @@
 use gimli_permutation::{ gimli, S };
 use gimli_hash::GimliHash;
+use seckey::zero;
 use crate::common::with;
 
 pub const HASH_ALG: u8 = 0x01;
@@ -54,8 +55,9 @@ impl Kdf {
             gimli(&mut state);
         }
 
-        // TODO zero state
-
-        with(&mut state, |state| output.copy_from_slice(&state[RATE..][..32]));
+        with(&mut state, |state| {
+            output.copy_from_slice(&state[RATE..][..32]);
+            zero(&mut state[..]);
+        });
     }
 }

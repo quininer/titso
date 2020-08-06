@@ -1,13 +1,17 @@
 mod common;
 pub mod error;
 pub mod primitive;
+pub mod shield;
 pub mod packet;
 
 pub use common::suggest;
+
 use snafu::ResultExt;
 use serde_cbor as cbor;
 use rand_core::{ RngCore, CryptoRng };
 use arrayref::{ array_ref, array_mut_ref };
+use seckey::zero;
+use shield::SecShield;
 use common::generate;
 use primitive::{
     kdf::Kdf,
@@ -37,20 +41,28 @@ macro_rules! chars {
 
 
 pub struct Titso {
-    mkey: Box<[u8; 32]>
+    mkey: SecShield
+}
+
+pub struct TitsoRef<'a> {
+    mkey: &'a [u8; 32]
 }
 
 impl Titso {
     pub fn open(password: &[u8], buf: &[u8]) -> error::Result<Titso> {
         let MasterSecret { salt, secret } = cbor::from_slice(buf)
             .context(error::Cbor)?;
+        let salt = array_ref!(salt, 0, 32);
+        let secret = array_ref!(secret, 0, 32);
 
-        let mut mkey = Box::new([0; 32]);
-        Kdf::default().derive(password, &salt, &mut *mkey);
+        let mkey = SecShield::with(32, |mkey| {
+            let mkey = array_mut_ref!(mkey, 0, 32);
+            Kdf::default().derive(password, salt, mkey);
 
-        for i in 0..32 {
-            mkey[i] ^= secret[i];
-        }
+            for i in 0..32 {
+                mkey[i] ^= secret[i];
+            }
+        });
 
         Ok(Titso { mkey })
     }
@@ -58,25 +70,41 @@ impl Titso {
     pub fn init<R: RngCore + CryptoRng>(mut rng: R, password: &[u8])
         -> error::Result<(Titso, Vec<u8>)>
     {
-        let mut mkey = Box::new([0; 32]);
         let mut salt = [0; 32];
         let mut secret = [0; 32];
         rng.fill_bytes(&mut salt);
-        rng.fill_bytes(&mut *mkey);
 
         Kdf::default()
             .derive(password, &salt, &mut secret);
 
-        for i in 0..32 {
-            secret[i] ^= mkey[i];
-        }
+        let mkey = SecShield::with(32, |mkey| {
+            rng.fill_bytes(mkey);
 
-        let buf = cbor::to_vec(&MasterSecret { salt, secret })
+            for i in 0..32 {
+                secret[i] ^= mkey[i];
+            }
+        });
+
+        let buf = cbor::to_vec(&MasterSecret { salt: &salt, secret: &secret })
             .context(error::Cbor)?;
+
+        zero(&mut salt[..]);
+        zero(&mut secret[..]);
 
         Ok((Titso { mkey }, buf))
     }
 
+    pub fn execute<R>(&mut self, f: impl FnOnce(&TitsoRef) -> R) -> R {
+        let mut mkey = self.mkey.get_mut();
+        let mkey = array_mut_ref!(mkey, 0, 32);
+        let titso = TitsoRef { mkey };
+
+        f(&titso)
+    }
+}
+
+impl TitsoRef<'_> {
+    #[inline]
     pub fn store_tag(&self, tags: &[impl AsRef<str>]) -> Tag {
         self.tag("store", tags)
     }
@@ -85,7 +113,7 @@ impl Titso {
         let mut itag = [0; 16];
         for tag in tags {
             let mut tmp = [0; 16];
-            let mut hasher = KeyedHash::new(&self.mkey, b"tag");
+            let mut hasher = KeyedHash::new(self.mkey, b"tag");
             hasher.update(&lable.len().to_le_bytes());
             hasher.update(lable.as_bytes());
             hasher.update(tag.as_ref().as_bytes());
@@ -98,7 +126,7 @@ impl Titso {
     }
 
     pub fn derive(&self, tags: &[impl AsRef<str>], rule: &Rule) -> String {
-        let mut hasher = KeyedHash::new(&self.mkey, b"derive");
+        let mut hasher = KeyedHash::new(self.mkey, b"derive");
         let Tag(kdf_tag) = self.tag("kdf", tags);
         hasher.update(&kdf_tag);
         hasher.update(&rule.count.to_le_bytes());
@@ -124,7 +152,7 @@ impl Titso {
         let (atag, buf) = value.split_at_mut(primitive::aead::TAG_LENGTH);
         let atag = array_ref!(atag, 0, primitive::aead::TAG_LENGTH);
 
-        if Aead::new(&self.mkey, &aead_tag)
+        if Aead::new(self.mkey, &aead_tag)
             .decrypt(b"item", buf, &atag)
         {
             cbor::from_slice(&buf).context(error::Cbor)
@@ -133,7 +161,7 @@ impl Titso {
         }
     }
 
-    pub fn put(&self, tags: &[impl AsRef<str>], item: &Item) -> error::Result<Vec<u8>> {
+    pub fn put(&mut self, tags: &[impl AsRef<str>], item: &Item) -> error::Result<Vec<u8>> {
         let Tag(aead_tag) = self.tag("aead", tags);
 
         let mut value = vec![0; primitive::aead::TAG_LENGTH];
@@ -142,7 +170,7 @@ impl Titso {
         let (atag, buf) = value.split_at_mut(primitive::aead::TAG_LENGTH);
         let atag = array_mut_ref!(atag, 0, primitive::aead::TAG_LENGTH);
 
-        Aead::new(&self.mkey, &aead_tag)
+        Aead::new(self.mkey, &aead_tag)
             .encrypt(b"item", buf, atag);
 
         Ok(value)

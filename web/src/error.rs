@@ -1,9 +1,11 @@
 use std::fmt;
 use std::error::Error as StdError;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use web_sys::Element;
 
 
+#[wasm_bindgen]
 pub struct JsError(JsValue);
 
 pub type JsResult<T> = std::result::Result<T, JsError>;
@@ -16,6 +18,18 @@ pub fn cast_failed<E: AsRef<JsValue>>(e: E) -> JsError {
 impl From<JsValue> for JsError {
     fn from(val: JsValue) -> JsError {
         JsError(val)
+    }
+}
+
+impl From<std::io::Error> for JsError {
+    fn from(err: std::io::Error) -> JsError {
+        JsError(JsValue::from(format!("{:?}", err)))
+    }
+}
+
+impl From<titso_core::error::Error> for JsError {
+    fn from(err: titso_core::error::Error) -> JsError {
+        JsError(JsValue::from(format!("{:?}", err)))
     }
 }
 

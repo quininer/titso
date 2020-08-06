@@ -3,3 +3,7 @@ members = [
 	"core",
 	"web"
 ]
+
+[profile.release]
+opt-level = "z"
+lto = "thin"

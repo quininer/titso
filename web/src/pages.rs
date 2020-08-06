@@ -1,34 +1,36 @@
+use std::rc::Rc;
 use wasm_bindgen::JsCast;
-use web_sys::{ Document, Element, HtmlInputElement, HtmlButtonElement, HtmlTextAreaElement };
+use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlTextAreaElement };
+use gloo_events::EventListener;
 use crate::error::{ JsResult, JsError, cast_failed };
+use crate::{ op, Titso };
 
 
 pub struct Layout {
-    unlock: UnlockPage,
-    query: QueryPage
+    pub unlock: UnlockPage,
+    pub query: QueryPage
 }
 
 pub struct UnlockPage {
-    page: Element,
-    password: HtmlInputElement,
-    color: Element,
-    submit: HtmlButtonElement
+    pub page: HtmlElement,
+    pub password: HtmlInputElement,
+    pub color: HtmlElement
 }
 
 pub struct QueryPage {
-    page: Element,
-    query: HtmlInputElement,
-    show: ShowPage
+    pub page: HtmlElement,
+    pub input: HtmlInputElement,
+    pub show: ShowPage
 }
 
 pub struct ShowPage {
-    page: Element,
-    count: HtmlInputElement,
-    chars: HtmlInputElement,
-    len: HtmlInputElement,
-    password: HtmlInputElement,
-    note: HtmlTextAreaElement,
-    change: HtmlButtonElement
+    pub page: HtmlElement,
+    pub count: HtmlInputElement,
+    pub chars: HtmlInputElement,
+    pub len: HtmlInputElement,
+    pub password: HtmlInputElement,
+    pub note: HtmlTextAreaElement,
+    pub change: HtmlButtonElement
 }
 
 impl Layout {
@@ -38,6 +40,11 @@ impl Layout {
             query: QueryPage::new(document)?
         })
     }
+
+    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+        self.unlock.hook(titso.clone())?;
+        self.query.hook(titso)
+    }
 }
 
 impl UnlockPage {
@@ -45,9 +52,18 @@ impl UnlockPage {
         Ok(UnlockPage {
             page: query_selector(document, ".unlock-page")?,
             password: query_selector(document, ".password")?,
-            color: query_selector(document, ".color-password")?,
-            submit: query_selector(document, ".submit-password")?
+            color: query_selector(document, ".color-password")?
         })
+    }
+
+    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+        EventListener::new(
+            self.password.as_ref(),
+            "submit",
+            move |event| op::unlock_submit(&titso, event).unwrap()
+        ).forget();
+
+        Ok(())
     }
 }
 
@@ -55,9 +71,21 @@ impl QueryPage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(QueryPage {
             page: query_selector(document, ".query-page")?,
-            query: query_selector(document, ".query")?,
+            input: query_selector(document, ".query")?,
             show: ShowPage::new(document)?
         })
+    }
+
+    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+        self.show.hook(titso.clone())?;
+
+        EventListener::new(
+            self.input.as_ref(),
+            "submit",
+            move |event| op::query_submit(&titso, event).unwrap()
+        ).forget();
+
+        Ok(())
     }
 }
 
@@ -72,6 +100,10 @@ impl ShowPage {
             note: query_selector(document, ".show-note")?,
             change: query_selector(document, ".submit-change")?,
         })
+    }
+
+    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+        todo!()
     }
 }
 

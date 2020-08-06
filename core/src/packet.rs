@@ -2,18 +2,22 @@ use serde::{ Deserialize, Serialize };
 
 
 #[derive(Default, Deserialize, Serialize)]
-pub struct MasterSecret {
-    pub(crate) salt: [u8; 32],
-    pub(crate) secret: [u8; 32]
+pub struct MasterSecret<'a> {
+    #[serde(with = "serde_bytes")]
+    pub(crate) salt: &'a [u8],
+
+    #[serde(with = "serde_bytes")]
+    pub(crate) secret: &'a [u8]
 }
 
-#[derive(Deserialize, Serialize)]
 #[derive(Clone, Copy, Debug)]
 pub struct Tag(pub [u8; 16]);
 
 #[derive(Deserialize, Serialize)]
 pub struct Item {
     pub password: Type,
+
+    #[serde(with = "serde_bytes")]
     pub note: Vec<u8>
 }
 
