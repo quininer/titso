@@ -150,7 +150,7 @@ pub fn query_submit(titso: &Titso) -> JsResult<()> {
 
 pub fn switch_fixed(titso: &Titso) {
     let use_fixed = titso.layout.query.show.fixed.checked();
-    titso.layout.query.show.rule.page.set_hidden(!use_fixed);
+    titso.layout.query.show.rule.page.set_hidden(use_fixed);
 }
 
 pub fn change_password(titso: &Titso) -> JsResult<()> {
@@ -278,7 +278,6 @@ pub fn create_new_profile(titso: &Titso) -> JsResult<()> {
     titso.layout.query.page.set_hidden(false);
 
     debug!("create ok");
-
     Ok(())
 }
 
