@@ -1,9 +1,23 @@
+use getrandom::getrandom;
 use rand_core::{ SeedableRng, CryptoRng, RngCore };
 use gimli_hash::{ GimliHash, XofReader };
+use seckey::TempKey;
 
 
 pub struct HashRng {
     state: XofReader
+}
+
+impl HashRng {
+    pub fn random() -> Result<HashRng, getrandom::Error> {
+        let mut seed = [0; 32];
+        let mut seed = TempKey::new(&mut seed);
+        getrandom(&mut seed[..])?;
+        let mut hasher = GimliHash::default();
+        hasher.update(b"titso random");
+        hasher.update(&seed[..]);
+        Ok(HashRng { state: hasher.xof() })
+    }
 }
 
 impl SeedableRng for HashRng {

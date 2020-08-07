@@ -4,9 +4,10 @@ mod op;
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use log::debug;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{ Window, Storage };
+use web_sys::Window;
 use kvdb_web::Database;
 use titso_core::Titso as Core;
 use error::JsResult;
@@ -30,23 +31,42 @@ impl Titso {
 
         let layout = Layout::new(&document)?;
         let core = RefCell::new(None);
+
+        debug!("layout ready");
+
         let db = Database::open("titso".into(), 1)
             .await
             .map_err(|err| err.to_string())?;
+
+        debug!("db ready");
 
         Ok(Titso { window, layout, core, db })
     }
 }
 
 #[wasm_bindgen]
-pub async fn start() -> JsResult<()> {
+pub fn start() {
+    #[inline]
+    async fn start2() -> JsResult<()> {
+        let titso = Titso::init().await?;
+        let titso = Rc::new(titso);
+        let titso2 = titso.clone();
+
+        titso.layout.hook(titso2)?;
+
+        debug!("hook ready");
+
+        // TODO
+
+        Ok(())
+    }
+
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    console_log::init_with_level(log::Level::Debug).unwrap();
 
-    let titso = Titso::init().await?;
-    let titso = Rc::new(titso);
-    let titso2 = titso.clone();
+    debug!("start");
 
-    titso.layout.hook(titso2)?;
-
-    todo!()
+    spawn_local(async {
+        start2().await.unwrap();
+    });
 }

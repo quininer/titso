@@ -50,6 +50,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_log"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "501a375961cef1a0d44767200e66e4a559283097e91d0730b1d75dfb2f8a1494"
+dependencies = [
+ "log",
+ "web-sys",
+]
+
+[[package]]
 name = "doc-comment"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -159,6 +169,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -546,6 +557,7 @@ dependencies = [
  "getrandom",
  "gimli-hash",
  "gimli-permutation",
+ "log",
  "once_cell",
  "rand_core",
  "seckey",
@@ -560,9 +572,12 @@ name = "titso-web"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "console_log",
+ "getrandom",
  "gloo-events",
  "js-sys",
  "kvdb-web",
+ "log",
  "seckey",
  "titso-core",
  "wasm-bindgen",

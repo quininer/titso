@@ -1,26 +1,47 @@
+<!DOCTYPE html>
 <html>
-	<head></head>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+		<title>Titso Web</title>
+		<style>
+			html, body {height: 100%; margin: 0;}
+			body {display: flex;}
+		</style>
+	</head>
 	<body>
 		<div class="unlock-page">
-			<input class="password" type="password" />
+			<input class="password" type="password" required />
 			<div class="color-password"></div>
-			<button class="submit-password"></button>
+			<button class="submit-password">Unlock</button>
 		</div>
 		<div class="query-page" hidden>
-			<input class="query" />
+			<input class="query-input" required />
 			<div class="show-page" hidden>
-				<input class="rule-count" />
-				<input class="rule-chars" />
-				<input class="rule-len" />
-				<input class="show-password" type="password" />
+				<input class="rule-fixed", type="checkbox" />
+				<div class="rule-page">
+					<input class="rule-count" type="number" />
+					<input class="rule-chars" />
+					<input class="rule-len" type="number" />
+				</div>
+				<input class="show-password" type="password" required />
 				<textarea class="show-note"></textarea>
-				<button class="submit-change"></button>
+				<button class="submit-change">Submit</button>
 			</div>
 		</div>
-		<div hidden>
-			<button class="lock"></button>
+		<div class="profile-page">
+			<button class="lock">Lock</button>
 			<input class="import-store" />
-			<button class="export-store"></button>
+			<button class="export-store">Export</button>
+			<button class="create-store">Create</button>
 		</div>
+		<script type="module">
+			import { start, default as init } from './pkg/titso_web.js';
+			async function run() {
+				await init('./pkg/titso_web_bg.wasm');
+				start();
+			}
+
+			run();
+		</script>
 	</body>
 </html>

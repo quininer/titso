@@ -1,3 +1,5 @@
+cargo-features = ["strip"]
+
 [workspace]
 members = [
 	"core",
@@ -5,5 +7,6 @@ members = [
 ]
 
 [profile.release]
-opt-level = "z"
+debug = true
+opt-level = "s"
 lto = "thin"

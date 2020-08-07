@@ -1,18 +1,20 @@
 use std::fmt;
 use std::error::Error as StdError;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
-use web_sys::Element;
 
 
-#[wasm_bindgen]
-pub struct JsError(JsValue);
+pub struct JsError(pub(crate) JsValue);
 
 pub type JsResult<T> = std::result::Result<T, JsError>;
 
 #[cold]
 pub fn cast_failed<E: AsRef<JsValue>>(e: E) -> JsError {
     JsError(JsValue::from(format!("js cast failed: {:?}", e.as_ref())))
+}
+
+#[cold]
+pub fn cast_debug(err: &dyn fmt::Debug) -> JsError {
+    JsError(JsValue::from(format!("{:?}", err)))
 }
 
 impl From<JsValue> for JsError {
@@ -23,13 +25,19 @@ impl From<JsValue> for JsError {
 
 impl From<std::io::Error> for JsError {
     fn from(err: std::io::Error) -> JsError {
-        JsError(JsValue::from(format!("{:?}", err)))
+        cast_debug(&err)
+    }
+}
+
+impl From<getrandom::Error> for JsError {
+    fn from(err: getrandom::Error) -> JsError {
+        cast_debug(&err)
     }
 }
 
 impl From<titso_core::error::Error> for JsError {
     fn from(err: titso_core::error::Error) -> JsError {
-        JsError(JsValue::from(format!("{:?}", err)))
+        cast_debug(&err)
     }
 }
 

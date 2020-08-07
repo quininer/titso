@@ -161,7 +161,7 @@ impl TitsoRef<'_> {
         }
     }
 
-    pub fn put(&mut self, tags: &[impl AsRef<str>], item: &Item) -> error::Result<Vec<u8>> {
+    pub fn put(&self, tags: &[impl AsRef<str>], item: &Item) -> error::Result<Vec<u8>> {
         let Tag(aead_tag) = self.tag("aead", tags);
 
         let mut value = vec![0; primitive::aead::TAG_LENGTH];

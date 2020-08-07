@@ -13,11 +13,15 @@ crate-type = ["cdylib"]
 titso-core = { path = "../core" }
 seckey = { version = "0.11.1", default-features = false }
 
+log = "0.4"
+console_log = "0.2"
+getrandom = { version = "0.1", features = [ "wasm-bindgen" ] }
+
 wasm-bindgen = "*"
 wasm-bindgen-futures = "*"
 wee_alloc = "0.4"
 console_error_panic_hook = "0.1"
 js-sys = "*"
-web-sys = { version = "0.3", features = [ "Document", "HtmlInputElement", "HtmlButtonElement", "HtmlTextAreaElement", "Storage" ] }
+web-sys = { version = "0.3", features = [ "Document", "HtmlInputElement", "HtmlButtonElement", "HtmlTextAreaElement", "KeyboardEvent" ] }
 kvdb-web = "*"
 gloo-events = "*"
