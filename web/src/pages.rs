@@ -43,6 +43,7 @@ pub struct RulePage {
 
 pub struct ProfilePage {
     pub page: HtmlElement,
+    pub lock: HtmlButtonElement,
     pub import: HtmlInputElement,
     pub export: HtmlButtonElement,
     pub create: HtmlButtonElement
@@ -175,6 +176,7 @@ impl ProfilePage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(ProfilePage {
             page: query_selector(document, ".profile-page")?,
+            lock: query_selector(document, ".lock")?,
             import: query_selector(document, ".import-store")?,
             export: query_selector(document, ".export-store")?,
             create: query_selector(document, ".create-store")?,
@@ -182,10 +184,18 @@ impl ProfilePage {
     }
 
     pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+        let titso2 = titso.clone();
+
+        EventListener::new(
+            self.lock.as_ref(),
+            "click",
+            move |_event| op::lock_page(&titso)
+        ).forget();
+
         EventListener::new(
             self.create.as_ref(),
             "click",
-            move |event| op::create_new_profile(&titso, event).unwrap()
+            move |_event| op::create_new_profile(&titso2).unwrap()
         ).forget();
 
         Ok(())

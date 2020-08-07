@@ -1,6 +1,5 @@
 use std::mem;
 use log::debug;
-use web_sys::Event;
 use kvdb_web::KeyValueDB;
 use seckey::{ TempKey, zero };
 use titso_core::Titso as Core;
@@ -234,7 +233,18 @@ pub fn show_password(titso: &Titso) {
     }
 }
 
-pub fn create_new_profile(titso: &Titso, _event: &Event) -> JsResult<()> {
+pub fn lock_page(titso: &Titso) {
+    titso.core.borrow_mut().take();
+
+    titso.layout.query.page.set_hidden(true);
+    titso.layout.query.show.page.set_hidden(true);
+    titso.layout.unlock.page.set_hidden(false);
+    titso.layout.query.input.set_value("");
+    titso.layout.query.show.password.set_value("");
+    titso.layout.query.show.note.set_value("");
+}
+
+pub fn create_new_profile(titso: &Titso) -> JsResult<()> {
     debug!("create start");
 
     if titso.db.get(0, b"secret")?.is_some() {
