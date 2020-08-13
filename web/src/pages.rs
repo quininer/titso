@@ -2,7 +2,8 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlTextAreaElement, KeyboardEvent };
-use gloo_events::EventListener;
+use gloo_events::{ EventListener, EventListenerOptions };
+use seckey::TempKey;
 use crate::error::{ JsResult, cast_failed };
 use crate::{ op, Titso };
 
@@ -16,8 +17,7 @@ pub struct Layout {
 pub struct UnlockPage {
     pub page: HtmlElement,
     pub password: HtmlInputElement,
-    pub color: HtmlElement,
-    pub submit: HtmlButtonElement
+    pub color: HtmlElement
 }
 
 pub struct QueryPage {
@@ -32,7 +32,8 @@ pub struct ShowPage {
     pub rule: RulePage,
     pub password: HtmlInputElement,
     pub note: HtmlTextAreaElement,
-    pub change: HtmlButtonElement
+    pub submit: HtmlButtonElement,
+    pub delete: HtmlButtonElement
 }
 
 pub struct RulePage {
@@ -71,26 +72,33 @@ impl UnlockPage {
         Ok(UnlockPage {
             page: query_selector(document, ".unlock-page")?,
             password: query_selector(document, ".password")?,
-            color: query_selector(document, ".color-password")?,
-            submit: query_selector(document, ".submit-password")?
+            color: query_selector(document, ".color-password")?
         })
     }
 
     pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
-        EventListener::new(
+        EventListener::new_with_options(
             self.password.as_ref(),
             "keydown",
+            EventListenerOptions::enable_prevent_default(),
             move |event| {
-                let key = event.dyn_ref::<KeyboardEvent>().map(|ev| ev.key());
+                event.prevent_default();
+                let key = event.dyn_ref::<KeyboardEvent>()
+                    .map(|ev| ev.key())
+                    .map(|key| TempKey::new(key.into_bytes()));
                 let titso = titso.clone();
-                spawn_local(async move {
-                    match key.as_deref() {
-                        Some("Enter") => spawn_local(async move {
-                            op::unlock_submit(&titso).await.unwrap()
-                        }),
-                        _ => ()
-                    }
-                })
+                match key.as_ref().map(|key| &***key) {
+                    Some(b"Enter") => spawn_local(async move {
+                        op::unlock_submit(&titso).await.unwrap()
+                    }),
+                    Some(b"Backspace") => {
+                        op::input_password(&titso, None)
+                    },
+                    Some(c) if c.len() == 1 && c[0].is_ascii() && !c[0].is_ascii_control() => {
+                        op::input_password(&titso, Some(c[0]))
+                    },
+                    _ => ()
+                }
             }
         ).forget();
 
@@ -150,13 +158,15 @@ impl ShowPage {
             rule: RulePage::new(document)?,
             password: query_selector(document, ".show-password")?,
             note: query_selector(document, ".show-note")?,
-            change: query_selector(document, ".submit-change")?,
+            submit: query_selector(document, ".submit-item")?,
+            delete: query_selector(document, ".delete-item")?,
         })
     }
 
     pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
         let titso2 = titso.clone();
         let titso3 = titso.clone();
+        let titso4 = titso.clone();
 
         EventListener::new(
             self.fixed.as_ref(),
@@ -165,13 +175,25 @@ impl ShowPage {
         ).forget();
 
         EventListener::new(
-            self.change.as_ref(),
+            self.submit.as_ref(),
             "click",
             move |_event| {
                 let titso = titso2.clone();
 
                 spawn_local(async move {
-                    op::change_password(&titso).await.unwrap()
+                    op::edit_item(&titso).await.unwrap()
+                })
+            }
+        ).forget();
+
+        EventListener::new(
+            self.delete.as_ref(),
+            "click",
+            move |_event| {
+                let titso = titso3.clone();
+
+                spawn_local(async move {
+                    op::delete_item(&titso).await.unwrap()
                 })
             }
         ).forget();
@@ -179,7 +201,7 @@ impl ShowPage {
         EventListener::new(
             self.password.as_ref(),
             "click",
-            move |_event| op::show_password(&titso3)
+            move |_event| op::show_password(&titso4)
         ).forget();
 
         Ok(())

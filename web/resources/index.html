@@ -12,10 +12,9 @@
 		<div class="unlock-page">
 			<input class="password" type="password" required />
 			<div class="color-password"></div>
-			<button class="submit-password">Unlock</button>
 		</div>
 		<div class="query-page" hidden>
-			<input class="query-input" required />
+			<input class="query-input" type="search" required />
 			<div class="show-page" hidden>
 				<input class="rule-fixed", type="checkbox" />
 				<div class="rule-page">
@@ -23,9 +22,10 @@
 					<input class="rule-chars" />
 					<input class="rule-len" type="number" />
 				</div>
-				<input class="show-password" type="password" required />
-				<textarea class="show-note"></textarea>
-				<button class="submit-change">Submit</button>
+				<input class="show-password" type="password" required readonly />
+				<textarea class="show-note" ></textarea>
+				<button class="submit-item">Submit</button>
+				<button class="delete-item">Delete</button>
 			</div>
 		</div>
 		<div class="profile-page">

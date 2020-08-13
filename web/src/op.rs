@@ -2,7 +2,6 @@ use std::mem;
 use log::debug;
 use getrandom::getrandom;
 use js_sys::Uint8Array;
-use web_sys::Event;
 use seckey::{ TempKey, zero };
 use titso_core::Titso as Core;
 use titso_core::primitive::rng::HashRng;
@@ -11,12 +10,14 @@ use crate::error::JsResult;
 use crate::Titso;
 
 
-pub fn input_password(titso: &Titso, event: &Event) -> JsResult<()> {
-//    event.prevent_default()?;
-
+pub fn input_password(titso: &Titso, key: Option<u8>) {
     let mut password = titso.password.borrow_mut();
 
-    todo!()
+    if let Some(c) = key {
+        let _ = password.push(c);
+    } else {
+        password.backspace();
+    }
 }
 
 pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
@@ -33,16 +34,13 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
     };
 
     let secret = TempKey::new(secret.as_mut_slice());
-    let mut password = titso.layout.unlock.password
-        .value()
-        .into_bytes();
+    let mut password = titso.password.borrow_mut();
+    let password = password.take();
 
     if password.is_empty() {
         titso.window.alert_with_message("password is empty")?;
         return Ok(());
     }
-
-    let password = TempKey::new(password.as_mut_slice());
 
     *titso.core.borrow_mut() = Some(Core::open(&password, &secret)?);
 
@@ -178,9 +176,10 @@ pub async fn query_submit(titso: &Titso) -> JsResult<()> {
 pub fn switch_fixed(titso: &Titso) {
     let use_fixed = titso.layout.query.show.fixed.checked();
     titso.layout.query.show.rule.page.set_hidden(use_fixed);
+    titso.layout.query.show.password.set_read_only(!use_fixed);
 }
 
-pub async fn change_password(titso: &Titso) -> JsResult<()> {
+pub async fn edit_item(titso: &Titso) -> JsResult<()> {
     struct TempItem(Item);
 
     impl Drop for TempItem {
@@ -195,7 +194,7 @@ pub async fn change_password(titso: &Titso) -> JsResult<()> {
         }
     }
 
-    debug!("change start");
+    debug!("edit start");
 
     let _guard = titso.defense.acquire()?;
 
@@ -246,7 +245,39 @@ pub async fn change_password(titso: &Titso) -> JsResult<()> {
 
     titso.db.put(&tag[..], Uint8Array::from(&val[..])).await?;
 
-    debug!("change ok");
+    debug!("edit ok");
+    Ok(())
+}
+
+pub async fn delete_item(titso: &Titso) -> JsResult<()> {
+    debug!("delete start");
+
+    let _guard = titso.defense.acquire()?;
+
+    let tags = titso.layout.query.input.value();
+    let tags = take_tags(&tags);
+
+    if tags.is_empty() {
+        titso.window.alert_with_message("tags is empty")?;
+        return Ok(())
+    }
+
+    let mut core = titso.core.borrow_mut();
+    let core = core
+        .as_mut()
+        .ok_or("titso core does not exist")?;
+
+    let Tag(tag) = {
+        let core = core.ready();
+        core.store_tag(&tags)
+    };
+
+    titso.db.del(&tag[..]).await?;
+
+    titso.layout.query.show.password.set_value("");
+    titso.layout.query.show.note.set_value("");
+
+    debug!("delete ok");
     Ok(())
 }
 
@@ -277,21 +308,18 @@ pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
 
     let _guard = titso.defense.acquire()?;
 
-    if titso.db.get(b"secret").await?.length() == 0 {
+    if titso.db.get(b"secret").await?.length() > 0 {
         titso.window.alert_with_message("The profile already exists!")?;
         return Ok(())
     }
 
-    let mut password = titso.layout.unlock.password
-        .value()
-        .into_bytes();
+    let mut password = titso.password.borrow_mut();
+    let password = password.take();
 
     if password.is_empty() {
         titso.window.alert_with_message("password is empty")?;
         return Ok(());
     }
-
-    let password = TempKey::new(password.as_mut_slice());
 
     let mut rng = HashRng::random()?;
     let (core, mut secret) = Core::init(&mut rng, &password)?;

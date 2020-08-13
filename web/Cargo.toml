@@ -22,6 +22,13 @@ wasm-bindgen-futures = "*"
 wee_alloc = "0.4"
 console_error_panic_hook = "0.1"
 js-sys = "*"
-web-sys = { version = "0.3", features = [ "Document", "HtmlInputElement", "HtmlButtonElement", "HtmlTextAreaElement", "Storage", "KeyboardEvent" ] }
+web-sys = { version = "0.3", features = [
+	"Document",
+	"HtmlInputElement",
+	"HtmlButtonElement",
+	"HtmlTextAreaElement",
+	"InputEvent",
+	"KeyboardEvent"
+] }
 indexed-kv = { git = "https://github.com/quininer/indexed-kv" }
 gloo-events = "*"
