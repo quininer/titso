@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::spawn_local;
 use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlTextAreaElement, KeyboardEvent };
 use gloo_events::EventListener;
 use crate::error::{ JsResult, cast_failed };
@@ -81,11 +82,15 @@ impl UnlockPage {
             "keydown",
             move |event| {
                 let key = event.dyn_ref::<KeyboardEvent>().map(|ev| ev.key());
-                let key = key.as_ref().map(String::as_str);
-                match key {
-                    Some("Enter") => op::unlock_submit(&titso).unwrap(),
-                    _ => ()
-                }
+                let titso = titso.clone();
+                spawn_local(async move {
+                    match key.as_deref() {
+                        Some("Enter") => spawn_local(async move {
+                            op::unlock_submit(&titso).await.unwrap()
+                        }),
+                        _ => ()
+                    }
+                })
             }
         ).forget();
 
@@ -110,12 +115,15 @@ impl QueryPage {
             "keydown",
             move |event| {
                 let key = event.dyn_ref::<KeyboardEvent>().map(|ev| ev.key());
-                let key = key.as_ref().map(String::as_str);
-                match key {
-                    Some("Enter") => op::query_submit(&titso).unwrap(),
-                    Some("Esc") | Some("Escape") => op::query_clear(&titso),
-                    _ => ()
-                }
+                let titso = titso.clone();
+
+                spawn_local(async move {
+                    match key.as_deref() {
+                        Some("Enter") => op::query_submit(&titso).await.unwrap(),
+                        Some("Esc") | Some("Escape") => op::query_clear(&titso),
+                        _ => ()
+                    }
+                })
             }
         ).forget();
 
@@ -159,7 +167,13 @@ impl ShowPage {
         EventListener::new(
             self.change.as_ref(),
             "click",
-            move |_event| op::change_password(&titso2).unwrap()
+            move |_event| {
+                let titso = titso2.clone();
+
+                spawn_local(async move {
+                    op::change_password(&titso).await.unwrap()
+                })
+            }
         ).forget();
 
         EventListener::new(
@@ -195,7 +209,13 @@ impl ProfilePage {
         EventListener::new(
             self.create.as_ref(),
             "click",
-            move |_event| op::create_new_profile(&titso2).unwrap()
+            move |_event| {
+                let titso = titso2.clone();
+
+                spawn_local(async move {
+                    op::create_new_profile(&titso).await.unwrap()
+                })
+            }
         ).forget();
 
         Ok(())

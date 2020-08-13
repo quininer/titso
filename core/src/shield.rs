@@ -36,8 +36,6 @@ impl SecShield {
     }
 }
 
-
-
 /// Shield Guard
 pub struct SecShieldGuard<'a> {
     buf: SecWriteGuard<'a>,

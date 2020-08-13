@@ -1,6 +1,8 @@
 use std::mem;
 use log::debug;
-use kvdb_web::KeyValueDB;
+use getrandom::getrandom;
+use js_sys::Uint8Array;
+use web_sys::Event;
 use seckey::{ TempKey, zero };
 use titso_core::Titso as Core;
 use titso_core::primitive::rng::HashRng;
@@ -9,11 +11,27 @@ use crate::error::JsResult;
 use crate::Titso;
 
 
-pub fn unlock_submit(titso: &Titso) -> JsResult<()> {
+pub fn input_password(titso: &Titso, event: &Event) -> JsResult<()> {
+//    event.prevent_default()?;
+
+    let mut password = titso.password.borrow_mut();
+
+    todo!()
+}
+
+pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
     debug!("unlock start");
 
-    let mut secret = titso.db.get(0, b"secret")?
-        .ok_or("not found secret")?;
+    let _guard = titso.defense.acquire()?;
+
+    let secret = titso.db.get(b"secret").await?;
+    let mut secret = if secret.length() > 0 {
+        secret.to_vec()
+    } else {
+        titso.window.alert_with_message("not found secret")?;
+        return Ok(());
+    };
+
     let secret = TempKey::new(secret.as_mut_slice());
     let mut password = titso.layout.unlock.password
         .value()
@@ -41,7 +59,7 @@ pub fn query_clear(titso: &Titso) {
     titso.layout.query.input.set_value("");
 }
 
-pub fn query_submit(titso: &Titso) -> JsResult<()> {
+pub async fn query_submit(titso: &Titso) -> JsResult<()> {
     enum QueryState {
         Render {
             password: String,
@@ -66,6 +84,8 @@ pub fn query_submit(titso: &Titso) -> JsResult<()> {
 
     debug!("query start");
 
+    let _guard = titso.defense.acquire()?;
+
     let tags = titso.layout.query.input.value();
     let tags = take_tags(&tags);
 
@@ -79,33 +99,40 @@ pub fn query_submit(titso: &Titso) -> JsResult<()> {
         .as_mut()
         .ok_or("titso core does not exist")?;
 
-    let state = core.execute(|core| -> JsResult<QueryState> {
-        let Tag(tag) = core.store_tag(&tags);
+    let Tag(tag) = {
+        let core = core.ready();
+        core.store_tag(&tags)
+    };
 
-        Ok(if let Some(val) = titso.db.get(0, &tag)? {
-            match core.get(&tags, &val) {
-                Ok(item) => match item.password {
-                    Type::Derive(rule) => QueryState::Render {
-                        password: core.derive(&tags, &rule),
-                        rule: Some(rule),
-                        note: item.note
-                    },
-                    Type::Fixed(pass) => QueryState::Render {
-                        password: pass,
-                        rule: None,
-                        note: item.note
-                    }
+    let core = core.ready();
+
+    let val = titso.db.get(&tag).await?;
+    let state = if val.length() > 0 {
+        let val = val.to_vec();
+        match core.get(&tags, &val) {
+            Ok(item) => match item.password {
+                Type::Derive(rule) => QueryState::Render {
+                    password: core.derive(&tags, &rule),
+                    rule: Some(rule),
+                    note: item.note
                 },
-                Err(err) => {
-                    let msg = format!("query failed: {:?}", err);
-                    titso.window.alert_with_message(&msg)?;
-                    QueryState::Nothing
+                Type::Fixed(pass) => QueryState::Render {
+                    password: pass,
+                    rule: None,
+                    note: item.note
                 }
+            },
+            Err(err) => {
+                let msg = format!("query failed: {:?}", err);
+                titso.window.alert_with_message(&msg)?;
+                QueryState::Nothing
             }
-        } else {
-            QueryState::New
-        })
-    })?;
+        }
+    } else {
+        QueryState::New
+    };
+
+    drop(core);
 
     match &state {
         QueryState::Render { password, rule, note } => {
@@ -153,7 +180,7 @@ pub fn switch_fixed(titso: &Titso) {
     titso.layout.query.show.rule.page.set_hidden(use_fixed);
 }
 
-pub fn change_password(titso: &Titso) -> JsResult<()> {
+pub async fn change_password(titso: &Titso) -> JsResult<()> {
     struct TempItem(Item);
 
     impl Drop for TempItem {
@@ -169,6 +196,8 @@ pub fn change_password(titso: &Titso) -> JsResult<()> {
     }
 
     debug!("change start");
+
+    let _guard = titso.defense.acquire()?;
 
     let tags = titso.layout.query.input.value();
     let tags = take_tags(&tags);
@@ -189,7 +218,7 @@ pub fn change_password(titso: &Titso) -> JsResult<()> {
 
         Item {
             password: Type::Fixed(password),
-            padding: Vec::new(),
+            padding: padding(),
             note,
         }
     } else {
@@ -203,20 +232,19 @@ pub fn change_password(titso: &Titso) -> JsResult<()> {
 
         Item {
             password: Type::Derive(Rule { count, chars, length: len }),
-            padding: Vec::new(),
+            padding: padding(),
             note
         }
     });
 
-    let (tag, val) = core.execute(|core| -> JsResult<([u8; 16], Vec<u8>)> {
-        let Tag(tag) = core.store_tag(&tags);
-        let val = core.put(&tags, &item.0)?;
-        Ok((tag, val))
-    })?;
+    let core = core.ready();
 
-    let mut t = titso.db.transaction();
-    t.put(0, &tag[..], &val);
-    titso.db.write(t)?;
+    let Tag(tag) = core.store_tag(&tags);
+    let val = core.put(&tags, &item.0)?;
+
+    drop(core);
+
+    titso.db.put(&tag[..], Uint8Array::from(&val[..])).await?;
 
     debug!("change ok");
     Ok(())
@@ -244,10 +272,12 @@ pub fn lock_page(titso: &Titso) {
     titso.layout.query.show.note.set_value("");
 }
 
-pub fn create_new_profile(titso: &Titso) -> JsResult<()> {
+pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
     debug!("create start");
 
-    if titso.db.get(0, b"secret")?.is_some() {
+    let _guard = titso.defense.acquire()?;
+
+    if titso.db.get(b"secret").await?.length() == 0 {
         titso.window.alert_with_message("The profile already exists!")?;
         return Ok(())
     }
@@ -267,9 +297,7 @@ pub fn create_new_profile(titso: &Titso) -> JsResult<()> {
     let (core, mut secret) = Core::init(&mut rng, &password)?;
     let secret = TempKey::new(&mut secret);
 
-    let mut t = titso.db.transaction(); // FIXME oh leak secret
-    t.put(0, b"secret", &secret);
-    titso.db.write(t)?;
+    titso.db.put(b"secret", Uint8Array::from(&secret[..])).await?;
 
     *titso.core.borrow_mut() = Some(core);
 
@@ -288,4 +316,10 @@ fn take_tags(tags: &str) -> Vec<&str> {
     tags.sort();
     tags.dedup();
     tags
+}
+
+fn padding() -> Vec<u8> {
+    let mut len = [0; 1];
+    getrandom(&mut len).unwrap();
+    vec![0; len[0] as usize % 32]
 }

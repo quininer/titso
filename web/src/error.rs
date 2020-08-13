@@ -3,7 +3,7 @@ use std::error::Error as StdError;
 use wasm_bindgen::JsValue;
 
 
-pub struct JsError(pub(crate) JsValue);
+pub struct JsError(JsValue);
 
 pub type JsResult<T> = std::result::Result<T, JsError>;
 
@@ -17,37 +17,50 @@ pub fn cast_debug(err: &dyn fmt::Debug) -> JsError {
     JsError(JsValue::from(format!("{:?}", err)))
 }
 
+impl From<indexed_kv::JsError> for JsError {
+    #[inline]
+    fn from(val: indexed_kv::JsError) -> JsError {
+        JsError(val.0)
+    }
+}
+
 impl From<JsValue> for JsError {
+    #[inline]
     fn from(val: JsValue) -> JsError {
         JsError(val)
     }
 }
 
 impl From<std::io::Error> for JsError {
+    #[inline]
     fn from(err: std::io::Error) -> JsError {
         cast_debug(&err)
     }
 }
 
 impl From<getrandom::Error> for JsError {
+    #[inline]
     fn from(err: getrandom::Error) -> JsError {
         cast_debug(&err)
     }
 }
 
 impl From<titso_core::error::Error> for JsError {
+    #[inline]
     fn from(err: titso_core::error::Error) -> JsError {
         cast_debug(&err)
     }
 }
 
 impl From<String> for JsError {
+    #[inline]
     fn from(val: String) -> JsError {
         JsError(JsValue::from(val))
     }
 }
 
 impl From<&'static str> for JsError {
+    #[inline]
     fn from(val: &'static str) -> JsError {
         JsError(JsValue::from(val))
     }

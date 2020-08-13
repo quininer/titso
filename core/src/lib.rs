@@ -11,7 +11,7 @@ use serde_cbor as cbor;
 use rand_core::{ RngCore, CryptoRng };
 use arrayref::{ array_ref, array_mut_ref };
 use seckey::zero;
-use shield::SecShield;
+use shield::{ SecShield, SecShieldGuard };
 use common::generate;
 use primitive::{
     kdf::Kdf,
@@ -45,7 +45,7 @@ pub struct Titso {
 }
 
 pub struct TitsoRef<'a> {
-    mkey: &'a [u8; 32]
+    mkey: SecShieldGuard<'a>
 }
 
 impl Titso {
@@ -94,12 +94,10 @@ impl Titso {
         Ok((Titso { mkey }, buf))
     }
 
-    pub fn execute<R>(&mut self, f: impl FnOnce(&TitsoRef) -> R) -> R {
-        let mut mkey = self.mkey.get_mut();
-        let mkey = array_mut_ref!(mkey, 0, 32);
-        let titso = TitsoRef { mkey };
-
-        f(&titso)
+    pub fn ready(&mut self) -> TitsoRef<'_> {
+        TitsoRef {
+            mkey: self.mkey.get_mut()
+        }
     }
 }
 
@@ -110,10 +108,12 @@ impl TitsoRef<'_> {
     }
 
     fn tag(&self, lable: &str, tags: &[impl AsRef<str>]) -> Tag {
+        let mkey = array_ref!(&self.mkey, 0, 32);
+
         let mut itag = [0; 16];
         for tag in tags {
             let mut tmp = [0; 16];
-            let mut hasher = KeyedHash::new(self.mkey, b"tag");
+            let mut hasher = KeyedHash::new(mkey, b"tag");
             hasher.update(&lable.len().to_le_bytes());
             hasher.update(lable.as_bytes());
             hasher.update(tag.as_ref().as_bytes());
@@ -126,7 +126,9 @@ impl TitsoRef<'_> {
     }
 
     pub fn derive(&self, tags: &[impl AsRef<str>], rule: &Rule) -> String {
-        let mut hasher = KeyedHash::new(self.mkey, b"derive");
+        let mkey = array_ref!(&self.mkey, 0, 32);
+
+        let mut hasher = KeyedHash::new(mkey, b"derive");
         let Tag(kdf_tag) = self.tag("kdf", tags);
         hasher.update(&kdf_tag);
         hasher.update(&rule.count.to_le_bytes());
@@ -146,13 +148,14 @@ impl TitsoRef<'_> {
     }
 
     pub fn get(&self, tags: &[impl AsRef<str>], value: &[u8]) -> error::Result<Item> {
+        let mkey = array_ref!(&self.mkey, 0, 32);
         let Tag(aead_tag) = self.tag("aead", tags);
 
         let mut value = value.to_vec();
         let (atag, buf) = value.split_at_mut(primitive::aead::TAG_LENGTH);
         let atag = array_ref!(atag, 0, primitive::aead::TAG_LENGTH);
 
-        if Aead::new(self.mkey, &aead_tag)
+        if Aead::new(mkey, &aead_tag)
             .decrypt(b"item", buf, &atag)
         {
             cbor::from_slice(&buf).context(error::Cbor)
@@ -162,6 +165,7 @@ impl TitsoRef<'_> {
     }
 
     pub fn put(&self, tags: &[impl AsRef<str>], item: &Item) -> error::Result<Vec<u8>> {
+        let mkey = array_ref!(&self.mkey, 0, 32);
         let Tag(aead_tag) = self.tag("aead", tags);
 
         let mut value = vec![0; primitive::aead::TAG_LENGTH];
@@ -170,7 +174,7 @@ impl TitsoRef<'_> {
         let (atag, buf) = value.split_at_mut(primitive::aead::TAG_LENGTH);
         let atag = array_mut_ref!(atag, 0, primitive::aead::TAG_LENGTH);
 
-        Aead::new(self.mkey, &aead_tag)
+        Aead::new(mkey, &aead_tag)
             .encrypt(b"item", buf, atag);
 
         Ok(value)
