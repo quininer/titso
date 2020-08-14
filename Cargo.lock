@@ -299,6 +299,8 @@ dependencies = [
  "js-sys",
  "log",
  "seckey",
+ "serde_bytes",
+ "serde_cbor",
  "titso-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",

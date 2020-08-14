@@ -27,12 +27,16 @@
 				<button class="submit-item">Submit</button>
 				<button class="delete-item">Delete</button>
 			</div>
+			<button class="lock">Lock</button>
 		</div>
 		<div class="profile-page">
-			<button class="lock">Lock</button>
-			<input class="import-store" />
-			<button class="export-store">Export</button>
-			<button class="create-store">Create</button>
+			<button class="create-secret">Create new Profile</button>
+			<input class="import-secret-file" type="file" hidden />
+			<button class="import-secret">Import Secret</button>
+			<button class="export-secret">Export Secret</button>
+			<input class="import-store-file" type="file" hidden />
+			<button class="import-store">Import Store</button>
+			<button class="export-store">Export Store</button>
 		</div>
 		<script type="module">
 			import { start, default as init } from './pkg/titso_web.js';

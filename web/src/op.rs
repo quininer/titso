@@ -1,12 +1,15 @@
 use std::mem;
 use log::debug;
-use getrandom::getrandom;
-use js_sys::Uint8Array;
+use wasm_bindgen_futures::JsFuture;
+use js_sys::{ Array, ArrayBuffer, Uint8Array };
+use web_sys::{ Url, File };
+use serde_bytes::{ Bytes, ByteBuf };
 use seckey::{ TempKey, zero };
 use titso_core::Titso as Core;
 use titso_core::primitive::rng::HashRng;
 use titso_core::packet::{ Tag, Item, Rule, Type };
 use crate::error::JsResult;
+use crate::common::{ take_tags, padding };
 use crate::Titso;
 
 
@@ -41,6 +44,8 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
         titso.window.alert_with_message("password is empty")?;
         return Ok(());
     }
+
+    debug!("password: {:?}", String::from_utf8_lossy(&password));
 
     *titso.core.borrow_mut() = Some(Core::open(&password, &secret)?);
 
@@ -180,6 +185,12 @@ pub fn switch_fixed(titso: &Titso) {
 }
 
 pub async fn edit_item(titso: &Titso) -> JsResult<()> {
+    edit_item2(titso).await?;
+    query_submit(titso).await?;
+    Ok(())
+}
+
+async fn edit_item2(titso: &Titso) -> JsResult<()> {
     struct TempItem(Item);
 
     impl Drop for TempItem {
@@ -337,17 +348,119 @@ pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
     Ok(())
 }
 
-fn take_tags(tags: &str) -> Vec<&str> {
-    let mut tags = tags
-        .split_whitespace()
-        .collect::<Vec<_>>();
-    tags.sort();
-    tags.dedup();
-    tags
+pub async fn import_secret(titso: &Titso) -> JsResult<()> {
+    debug!("import secret start");
+
+    let _guard = titso.defense.acquire()?;
+
+    if titso.db.get(b"secret").await?.length() > 0 {
+        titso.window.alert_with_message("The profile already exists!")?;
+        return Ok(())
+    }
+
+    let fd = titso.layout.profile.import_secret_file
+        .files()
+        .and_then(|files| files.get(0))
+        .ok_or("not found secret file")?;
+
+    let buf = JsFuture::from(fd.array_buffer()).await?;
+    let buf: ArrayBuffer = buf.into();
+    let buf = Uint8Array::new(&buf);
+
+    titso.db.put(b"secret", buf).await?;
+
+    debug!("import secret ok");
+    Ok(())
 }
 
-fn padding() -> Vec<u8> {
-    let mut len = [0; 1];
-    getrandom(&mut len).unwrap();
-    vec![0; len[0] as usize % 32]
+pub async fn export_secret(titso: &Titso) -> JsResult<()> {
+    debug!("export secret start");
+    let _guard = titso.defense.acquire()?;
+
+    let buf = titso.db.get(b"secret").await?;
+
+    if buf.length() == 0 {
+        titso.window.alert_with_message("The profile no exists!")?;
+        return Ok(())
+    }
+
+    let arr = Array::new();
+    arr.push(buf.as_ref());
+    let fd = File::new_with_u8_array_sequence(
+        arr.as_ref(),
+        "titso-secret.bin"
+    )?;
+    let url = Url::create_object_url_with_blob(fd.as_ref())?;
+
+    titso.window.open_with_url(&url)?;
+
+    debug!("export secret ok");
+    Ok(())
+}
+
+pub async fn import_store(titso: &Titso) -> JsResult<()> {
+    type StoreList<'a> = Vec<(&'a Bytes, &'a Bytes)>;
+
+    debug!("import store start");
+    let _guard = titso.defense.acquire()?;
+
+    let fd = titso.layout.profile.import_store_file
+        .files()
+        .and_then(|files| files.get(0))
+        .ok_or("not found secret file")?;
+
+    let buf = JsFuture::from(fd.array_buffer()).await?;
+    let buf: ArrayBuffer = buf.into();
+    let buf = Uint8Array::new(&buf);
+    let buf = buf.to_vec();
+
+    let storelist: StoreList = serde_cbor::from_slice(&buf)?;
+
+    for (k, v) in storelist {
+        let v = Uint8Array::from(v.as_ref());
+        titso.db.put(k.as_ref(), v).await?;
+    }
+
+    debug!("import store ok");
+    Ok(())
+}
+
+pub async fn export_store(titso: &Titso) -> JsResult<()> {
+    type StoreList = Vec<(ByteBuf, ByteBuf)>;
+
+    debug!("export store start");
+    let _guard = titso.defense.acquire()?;
+
+    let mut iter = titso.db.find(b"").await?;
+    let mut storelist: StoreList = Vec::with_capacity(8);
+
+    while let Some((k, v)) = iter.next().await? {
+        if k == b"secret" {
+            continue
+        }
+
+        let k = ByteBuf::from(k);
+        let v = ByteBuf::from(v.to_vec());
+        storelist.push((k, v));
+    }
+
+    if storelist.is_empty() {
+        titso.window.alert_with_message("The storelist is empty!")?;
+        return Ok(())
+    }
+
+    let buf = serde_cbor::to_vec(&storelist)?;
+    let buf = Uint8Array::from(buf.as_slice());
+    let arr = Array::new();
+    arr.push(buf.as_ref());
+    let fd = File::new_with_u8_array_sequence(
+        arr.as_ref(),
+        "titso-storelist.bin"
+    )?;
+    let url = Url::create_object_url_with_blob(fd.as_ref())?;
+
+    titso.window.open_with_url(&url)?;
+
+    debug!("export store start");
+    Ok(())
 }

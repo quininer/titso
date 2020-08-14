@@ -23,7 +23,8 @@ pub struct UnlockPage {
 pub struct QueryPage {
     pub page: HtmlElement,
     pub input: HtmlInputElement,
-    pub show: ShowPage
+    pub show: ShowPage,
+    pub lock: HtmlButtonElement,
 }
 
 pub struct ShowPage {
@@ -45,10 +46,13 @@ pub struct RulePage {
 
 pub struct ProfilePage {
     pub page: HtmlElement,
-    pub lock: HtmlButtonElement,
-    pub import: HtmlInputElement,
-    pub export: HtmlButtonElement,
-    pub create: HtmlButtonElement
+    pub create: HtmlButtonElement,
+    pub import_secret_file: HtmlInputElement,
+    pub import_secret: HtmlButtonElement,
+    pub export_secret: HtmlButtonElement,
+    pub import_store_file: HtmlInputElement,
+    pub import_store: HtmlButtonElement,
+    pub export_store: HtmlButtonElement
 }
 
 impl Layout {
@@ -111,12 +115,14 @@ impl QueryPage {
         Ok(QueryPage {
             page: query_selector(document, ".query-page")?,
             input: query_selector(document, ".query-input")?,
-            show: ShowPage::new(document)?
+            show: ShowPage::new(document)?,
+            lock: query_selector(document, ".lock")?
         })
     }
 
     pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
         self.show.hook(titso.clone())?;
+        let titso2 = titso.clone();
 
         EventListener::new(
             self.input.as_ref(),
@@ -134,6 +140,13 @@ impl QueryPage {
                 })
             }
         ).forget();
+
+        EventListener::new(
+            self.lock.as_ref(),
+            "click",
+            move |_event| op::lock_page(&titso2)
+        ).forget();
+
 
         Ok(())
     }
@@ -212,30 +225,92 @@ impl ProfilePage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(ProfilePage {
             page: query_selector(document, ".profile-page")?,
-            lock: query_selector(document, ".lock")?,
-            import: query_selector(document, ".import-store")?,
-            export: query_selector(document, ".export-store")?,
-            create: query_selector(document, ".create-store")?,
+            create: query_selector(document, ".create-secret")?,
+            import_secret_file: query_selector(document, ".import-secret-file")?,
+            import_secret: query_selector(document, ".import-secret")?,
+            export_secret: query_selector(document, ".export-secret")?,
+            import_store_file: query_selector(document, ".import-store-file")?,
+            import_store: query_selector(document, ".import-store")?,
+            export_store: query_selector(document, ".export-store")?,
         })
     }
 
     pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+        let import_secret_file = self.import_secret_file.clone();
+        let import_store_file = self.import_store_file.clone();
+        let titso1 = titso.clone();
         let titso2 = titso.clone();
-
-        EventListener::new(
-            self.lock.as_ref(),
-            "click",
-            move |_event| op::lock_page(&titso)
-        ).forget();
+        let titso3 = titso.clone();
+        let titso4 = titso.clone();
 
         EventListener::new(
             self.create.as_ref(),
             "click",
             move |_event| {
-                let titso = titso2.clone();
+                let titso = titso.clone();
 
                 spawn_local(async move {
                     op::create_new_profile(&titso).await.unwrap()
+                })
+            }
+        ).forget();
+
+        EventListener::new(
+            self.import_secret.as_ref(),
+            "click",
+            move |_event| import_secret_file.click()
+        ).forget();
+
+        EventListener::new(
+            self.import_store.as_ref(),
+            "click",
+            move |_event| import_store_file.click()
+        ).forget();
+
+        EventListener::new(
+            self.import_secret_file.as_ref(),
+            "change",
+            move |_event| {
+                let titso = titso1.clone();
+
+                spawn_local(async move {
+                    op::import_secret(&titso).await.unwrap()
+                })
+            }
+        ).forget();
+
+        EventListener::new(
+            self.import_store_file.as_ref(),
+            "change",
+            move |_event| {
+                let titso = titso2.clone();
+
+                spawn_local(async move {
+                    op::import_store(&titso).await.unwrap()
+                })
+            }
+        ).forget();
+
+        EventListener::new(
+            self.export_secret.as_ref(),
+            "click",
+            move |_event| {
+                let titso = titso3.clone();
+
+                spawn_local(async move {
+                    op::export_secret(&titso).await.unwrap()
+                })
+            }
+        ).forget();
+
+        EventListener::new(
+            self.export_store.as_ref(),
+            "click",
+            move |_event| {
+                let titso = titso4.clone();
+
+                spawn_local(async move {
+                    op::export_store(&titso).await.unwrap()
                 })
             }
         ).forget();

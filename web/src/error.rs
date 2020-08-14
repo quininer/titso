@@ -52,6 +52,13 @@ impl From<titso_core::error::Error> for JsError {
     }
 }
 
+impl From<serde_cbor::Error> for JsError {
+    #[inline]
+    fn from(val: serde_cbor::Error) -> JsError {
+        cast_debug(&val)
+    }
+}
+
 impl From<String> for JsError {
     #[inline]
     fn from(val: String) -> JsError {

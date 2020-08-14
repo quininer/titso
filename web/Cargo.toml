@@ -16,6 +16,8 @@ seckey = { version = "0.11.2", default-features = false }
 log = "0.4"
 console_log = "0.2"
 getrandom = { version = "0.1", features = [ "wasm-bindgen" ] }
+serde_cbor = "0.11"
+serde_bytes = "0.11"
 
 wasm-bindgen = "*"
 wasm-bindgen-futures = "*"
@@ -28,7 +30,10 @@ web-sys = { version = "0.3", features = [
 	"HtmlButtonElement",
 	"HtmlTextAreaElement",
 	"InputEvent",
-	"KeyboardEvent"
+	"KeyboardEvent",
+	"FileList",
+	"File",
+	"Url"
 ] }
 indexed-kv = { git = "https://github.com/quininer/indexed-kv" }
 gloo-events = "*"

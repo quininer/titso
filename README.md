@@ -29,7 +29,6 @@ backup and sync
 + salt, secret
 	* sss
 + key -> password and encrypt data
-+ tag -> encrypt hint
 
 ===
 

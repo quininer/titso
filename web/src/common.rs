@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::cell::Cell;
+use getrandom::getrandom;
 use seckey::{ TempKey, zero };
 use crate::error::JsResult;
 
@@ -36,10 +37,12 @@ impl Password {
         }
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
         &self.bytes[..self.len]
     }
 
+    #[inline]
     pub fn take(&mut self) -> PassGuard<'_> {
         PassGuard(self)
     }
@@ -48,6 +51,7 @@ impl Password {
 impl Deref for PassGuard<'_> {
     type Target = [u8];
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.0.as_bytes()
     }
@@ -56,6 +60,7 @@ impl Deref for PassGuard<'_> {
 impl Drop for PassGuard<'_> {
     fn drop(&mut self) {
         zero(&mut self.0.bytes[..self.0.len]);
+        self.0.len = 0;
     }
 }
 
@@ -85,4 +90,19 @@ impl Drop for LockGuard<'_> {
     fn drop(&mut self) {
         self.0.set(true);
     }
+}
+
+pub fn take_tags(tags: &str) -> Vec<&str> {
+    let mut tags = tags
+        .split_whitespace()
+        .collect::<Vec<_>>();
+    tags.sort();
+    tags.dedup();
+    tags
+}
+
+pub fn padding() -> Vec<u8> {
+    let mut len = [0; 1];
+    getrandom(&mut len).unwrap();
+    vec![0; len[0] as usize % 32]
 }
