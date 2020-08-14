@@ -59,11 +59,9 @@ pub fn start() {
         let titso = Rc::new(titso);
         let titso2 = titso.clone();
 
-        titso.layout.hook(titso2)?;
+        titso.layout.hook(titso2);
 
         debug!("hook ready");
-
-        // TODO
 
         Ok(())
     }

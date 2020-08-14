@@ -3,7 +3,6 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlTextAreaElement, KeyboardEvent };
 use gloo_events::{ EventListener, EventListenerOptions };
-use seckey::TempKey;
 use crate::error::{ JsResult, cast_failed };
 use crate::{ op, Titso };
 
@@ -64,10 +63,10 @@ impl Layout {
         })
     }
 
-    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
-        self.unlock.hook(titso.clone())?;
-        self.query.hook(titso.clone())?;
-        self.profile.hook(titso)
+    pub fn hook(&self, titso: Rc<Titso>) {
+        self.unlock.hook(titso.clone());
+        self.query.hook(titso.clone());
+        self.profile.hook(titso);
     }
 }
 
@@ -80,7 +79,7 @@ impl UnlockPage {
         })
     }
 
-    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+    pub fn hook(&self, titso: Rc<Titso>) {
         EventListener::new_with_options(
             self.password.as_ref(),
             "keydown",
@@ -89,9 +88,9 @@ impl UnlockPage {
                 event.prevent_default();
                 let key = event.dyn_ref::<KeyboardEvent>()
                     .map(|ev| ev.key())
-                    .map(|key| TempKey::new(key.into_bytes()));
+                    .map(|key| key.into_bytes());
                 let titso = titso.clone();
-                match key.as_ref().map(|key| &***key) {
+                match key.as_deref() {
                     Some(b"Enter") => spawn_local(async move {
                         op::unlock_submit(&titso).await.unwrap()
                     }),
@@ -105,8 +104,6 @@ impl UnlockPage {
                 }
             }
         ).forget();
-
-        Ok(())
     }
 }
 
@@ -120,8 +117,8 @@ impl QueryPage {
         })
     }
 
-    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
-        self.show.hook(titso.clone())?;
+    pub fn hook(&self, titso: Rc<Titso>) {
+        self.show.hook(titso.clone());
         let titso2 = titso.clone();
 
         EventListener::new(
@@ -146,9 +143,6 @@ impl QueryPage {
             "click",
             move |_event| op::lock_page(&titso2)
         ).forget();
-
-
-        Ok(())
     }
 }
 
@@ -176,7 +170,7 @@ impl ShowPage {
         })
     }
 
-    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+    pub fn hook(&self, titso: Rc<Titso>) {
         let titso2 = titso.clone();
         let titso3 = titso.clone();
         let titso4 = titso.clone();
@@ -216,8 +210,6 @@ impl ShowPage {
             "click",
             move |_event| op::show_password(&titso4)
         ).forget();
-
-        Ok(())
     }
 }
 
@@ -235,7 +227,7 @@ impl ProfilePage {
         })
     }
 
-    pub fn hook(&self, titso: Rc<Titso>) -> JsResult<()> {
+    pub fn hook(&self, titso: Rc<Titso>) {
         let import_secret_file = self.import_secret_file.clone();
         let import_store_file = self.import_store_file.clone();
         let titso1 = titso.clone();
@@ -314,8 +306,6 @@ impl ProfilePage {
                 })
             }
         ).forget();
-
-        Ok(())
     }
 }
 

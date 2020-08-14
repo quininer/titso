@@ -1,10 +1,8 @@
-use std::mem;
 use log::debug;
 use wasm_bindgen_futures::JsFuture;
 use js_sys::{ Array, ArrayBuffer, Uint8Array };
 use web_sys::{ Url, File };
 use serde_bytes::{ Bytes, ByteBuf };
-use seckey::{ TempKey, zero };
 use titso_core::Titso as Core;
 use titso_core::primitive::rng::HashRng;
 use titso_core::packet::{ Tag, Item, Rule, Type };
@@ -29,14 +27,13 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
     let _guard = titso.defense.acquire()?;
 
     let secret = titso.db.get(b"secret").await?;
-    let mut secret = if secret.length() > 0 {
+    let secret = if secret.length() > 0 {
         secret.to_vec()
     } else {
         titso.window.alert_with_message("not found secret")?;
         return Ok(());
     };
 
-    let secret = TempKey::new(secret.as_mut_slice());
     let mut password = titso.password.borrow_mut();
     let password = password.take();
 
@@ -44,8 +41,6 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
         titso.window.alert_with_message("password is empty")?;
         return Ok(());
     }
-
-    debug!("password: {:?}", String::from_utf8_lossy(&password));
 
     *titso.core.borrow_mut() = Some(Core::open(&password, &secret)?);
 
@@ -71,18 +66,6 @@ pub async fn query_submit(titso: &Titso) -> JsResult<()> {
         },
         Nothing,
         New
-    }
-
-    impl Drop for QueryState {
-        fn drop(&mut self) {
-            if let QueryState::Render { password, note, .. } = self {
-                let mut pass = mem::take(password).into_bytes();
-                let mut note = mem::take(note).into_bytes();
-
-                zero(&mut pass);
-                zero(&mut note);
-            }
-        }
     }
 
     debug!("query start");
@@ -191,20 +174,6 @@ pub async fn edit_item(titso: &Titso) -> JsResult<()> {
 }
 
 async fn edit_item2(titso: &Titso) -> JsResult<()> {
-    struct TempItem(Item);
-
-    impl Drop for TempItem {
-        fn drop(&mut self) {
-            if let Type::Fixed(pass) = &mut self.0.password {
-                let mut pass = mem::take(pass).into_bytes();
-                zero(&mut pass);
-            }
-
-            let mut note = mem::take(&mut self.0.note).into_bytes();
-            zero(&mut note);
-        }
-    }
-
     debug!("edit start");
 
     let _guard = titso.defense.acquire()?;
@@ -222,7 +191,7 @@ async fn edit_item2(titso: &Titso) -> JsResult<()> {
         .as_mut()
         .ok_or("titso core does not exist")?;
 
-    let item = TempItem(if titso.layout.query.show.fixed.checked() {
+    let item = if titso.layout.query.show.fixed.checked() {
         let password = titso.layout.query.show.password.value();
         let note = titso.layout.query.show.note.value();
 
@@ -245,12 +214,12 @@ async fn edit_item2(titso: &Titso) -> JsResult<()> {
             padding: padding(),
             note
         }
-    });
+    };
 
     let core = core.ready();
 
     let Tag(tag) = core.store_tag(&tags);
-    let val = core.put(&tags, &item.0)?;
+    let val = core.put(&tags, &item)?;
 
     drop(core);
 
@@ -333,8 +302,7 @@ pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
     }
 
     let mut rng = HashRng::random()?;
-    let (core, mut secret) = Core::init(&mut rng, &password)?;
-    let secret = TempKey::new(&mut secret);
+    let (core, secret) = Core::init(&mut rng, &password)?;
 
     titso.db.put(b"secret", Uint8Array::from(&secret[..])).await?;
 

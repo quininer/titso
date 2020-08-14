@@ -1,12 +1,12 @@
 use std::ops::Deref;
 use std::cell::Cell;
 use getrandom::getrandom;
-use seckey::{ TempKey, zero };
+use seckey::zero;
 use crate::error::JsResult;
 
 
 pub struct Password {
-    bytes: TempKey<Box<[u8]>>,
+    bytes: Box<[u8]>,
     len: usize
 }
 
@@ -15,7 +15,7 @@ pub struct PassGuard<'a>(&'a mut Password);
 impl Password {
     pub fn new() -> Password {
         Password {
-            bytes: TempKey::new(vec![0; 256].into_boxed_slice()),
+            bytes: vec![0; 256].into_boxed_slice(),
             len: 0
         }
     }
