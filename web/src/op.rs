@@ -341,6 +341,9 @@ pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
 
     titso.layout.unlock.password.set_value("");
     titso.layout.unlock.page.set_hidden(true);
+    titso.layout.unlock.color
+        .style()
+        .set_property("color", "rgb(0, 0, 0)")?;
     titso.layout.query.page.set_hidden(false);
 
     debug!("create ok");
