@@ -94,10 +94,10 @@ impl UnlockPage {
                         op::unlock_submit(&titso).await.unwrap()
                     }),
                     Some(b"Backspace") => {
-                        op::input_password(&titso, None)
+                        op::input_password(&titso, None).unwrap()
                     },
                     Some(c) if c.len() == 1 && c[0].is_ascii() && !c[0].is_ascii_control() => {
-                        op::input_password(&titso, Some(c[0]))
+                        op::input_password(&titso, Some(c[0])).unwrap()
                     },
                     _ => ()
                 }

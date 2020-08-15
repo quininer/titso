@@ -4,6 +4,7 @@ use js_sys::{ Array, ArrayBuffer, Uint8Array };
 use web_sys::{ Url, File };
 use serde_bytes::{ Bytes, ByteBuf };
 use titso_core::Titso as Core;
+use titso_core::primitive::keyedhash::KeyedHash;
 use titso_core::primitive::rng::HashRng;
 use titso_core::packet::{ Tag, Item, Rule, Type };
 use crate::error::JsResult;
@@ -11,7 +12,16 @@ use crate::common::{ take_tags, padding };
 use crate::Titso;
 
 
-pub fn input_password(titso: &Titso, key: Option<u8>) {
+pub fn input_password(titso: &Titso, key: Option<u8>) -> JsResult<()> {
+    fn mask_color(c: u8) -> (u8, u8, u8) {
+        let x = c % 216;
+        (
+            (x / 36 * 51) as u8,
+            (x % 36 / 6 * 51) as u8,
+            (x % 36 % 6 * 51) as u8
+        )
+    }
+
     let mut password = titso.password.borrow_mut();
 
     if let Some(c) = key {
@@ -19,6 +29,25 @@ pub fn input_password(titso: &Titso, key: Option<u8>) {
     } else {
         password.backspace();
     }
+
+    let password = password.as_bytes();
+
+    let color = mask_color(if password.is_empty() {
+        0
+    } else {
+        let mut hasher = KeyedHash::new(&[0x42; 32], b"titso password");
+        let mut color = [0];
+        hasher.update(password);
+        hasher.finalize(&mut color[..]);
+        color[0]
+    });
+
+    let color = format!("rgb({}, {}, {})", color.0, color.1, color.2);
+    titso.layout.unlock.color
+        .style()
+        .set_property("color", &color)?;
+
+    Ok(())
 }
 
 pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
@@ -46,6 +75,9 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
 
     titso.layout.unlock.password.set_value("");
     titso.layout.unlock.page.set_hidden(true);
+    titso.layout.unlock.color
+        .style()
+        .set_property("color", "rgb(0, 0, 0)")?;
     titso.layout.query.page.set_hidden(false);
 
     debug!("unlock ok");
