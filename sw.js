@@ -1,4 +1,4 @@
-var CACHE_NAME = "titso-0.0.0";
+var CACHE_NAME = "titso-0.0.1";
 var APP_SHELL_FILES = [
 	"/titso/",
 	"/titso/index.html",
@@ -13,7 +13,7 @@ self.addEventListener('install', function(e) {
 	e.waitUntil(
 		caches.open(cacheName).then(function(cache) {
 			console.log('[Service Worker] Caching all: app shell and content');
-			return cache.addAll(contentToCache);
+			return cache.addAll(APP_SHELL_FILES);
 		})
 	);
 });
