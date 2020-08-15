@@ -2,42 +2,114 @@
 <html>
 	<head>
 		<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>Titso Web</title>
-		<style>
-			html, body {height: 100%; margin: 0;}
-			body {display: flex;}
-		</style>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css"></link>
 	</head>
 	<body>
-		<div class="unlock-page">
-			<input class="password" type="password" required />
-			<div class="color-password"></div>
-		</div>
-		<div class="query-page" hidden>
-			<input class="query-input" type="search" required />
-			<div class="show-page" hidden>
-				<input class="rule-fixed", type="checkbox" />
-				<div class="rule-page">
-					<input class="rule-count" type="number" />
-					<input class="rule-chars" />
-					<input class="rule-len" type="number" />
-				</div>
-				<input class="show-password" type="password" required readonly />
-				<textarea class="show-note" ></textarea>
-				<button class="submit-item">Submit</button>
-				<button class="delete-item">Delete</button>
+		<section class="hero is-dark is-bold fullheight">
+			<div class="hero-body container">
+				<p class="title">Titso Web</p>
 			</div>
-			<button class="lock">Lock</button>
-		</div>
-		<div class="profile-page">
-			<button class="create-secret">Create new Profile</button>
-			<input class="import-secret-file" type="file" hidden />
-			<button class="import-secret">Import Secret</button>
-			<button class="export-secret">Export Secret</button>
-			<input class="import-store-file" type="file" hidden />
-			<button class="import-store">Import Store</button>
-			<button class="export-store">Export Store</button>
-		</div>
+		</section>
+		<section>
+			<div class="dropdown is-hoverable">
+				<div class="dropdown-trigger">
+					<button class="button" aria-haspopup="true" aria-controls="dropdown-menu">
+						<span>Profile</span>
+					</button>
+				</div>
+				<div class="dropdown-menu is-right" role="menu">
+					<div class="dropdown-content">
+						<a id="create-secret" class="dropdown-item">Create new profile</a>
+						<a id="import-secret" class="dropdown-item">Import secret</a>
+						<a id="export-secret" class="dropdown-item">Export secret</a>
+						<a id="import-store" class="dropdown-item">Import store</a>
+						<a id="export-store" class="dropdown-item">Export store</a>
+					</div>
+				</div>
+				<input id="import-secret-file" type="file" hidden />
+				<input id="import-store-file" type="file" hidden />
+			</div>
+		</section>
+		<section>
+			<div id="unlock-page" class="container">
+				<input
+					id="input-password" type="password"
+					class="input is-large"
+					placeholder="Unlock Password..."
+					required autofocus disabled
+				/>
+				<div id="color-password"></div>
+			</div>
+		</section>
+		<section class="container">
+			<div id="query-page" hidden>
+				<div class="field">
+					<input
+						id="query-input" type="search"
+						class="input is-large"
+						placeholder="Query Tags..."
+						required autofocus
+					/>
+				</div>
+				<div class="box">
+					<div id="show-page" hidden>
+						<div class="field is-pulled-right">
+							<label class="checkbox">
+								<input id="rule-fixed", type="checkbox" />
+								Use fixed password
+							</label>
+						</div>
+						<div id="rule-page">
+							<div class="field is-horizontal">
+								<div class="field">
+									<label class="label">Count</label>
+									<div class="control">
+										<input id="rule-count" type="number" class="input" />
+									</div>
+								</div>
+								<div class="field">
+									<label class="label">Length</label>
+									<div class="control">
+										<input id="rule-len" type="number" class="input" />
+									</div>
+								</div>
+								<div class="field">
+									<label class="label">Available Chars</label>
+									<div class="control">
+										<input id="rule-chars" class="input" />
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<label class="label">Password</label>
+							<div class="control">
+								<input id="show-password" type="password" class="input" required readonly />
+							</div>
+						</div>
+
+						<div class="field">
+							<label class="label">Note</label>
+							<div class="control">
+								<textarea id="show-note" class="textarea" placeholder="Any string..." ></textarea>
+							</div>
+						</div>
+
+						<div class="field is-grouped">
+							<div class="control">
+								<button id="submit-item" class="button is-link">Submit</button>
+							</div>
+							<div class="control">
+								<button id="delete-item" class="button is-link is-light">Delete</button>
+							</div>
+						</div>
+					</div>
+					<button id="lock" class="button is-primary is-pulled-right">Lock</button>
+				</div>
+			</div>
+		</section>
 		<script type="module">
 			import { start, default as init } from './pkg/titso_web.js';
 			async function run() {

@@ -63,6 +63,8 @@ pub fn start() {
 
         debug!("hook ready");
 
+        titso.layout.unlock.password.set_disabled(false);
+
         Ok(())
     }
 

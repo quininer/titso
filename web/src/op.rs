@@ -47,7 +47,6 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
     titso.layout.unlock.password.set_value("");
     titso.layout.unlock.page.set_hidden(true);
     titso.layout.query.page.set_hidden(false);
-    titso.layout.query.input.focus()?;
 
     debug!("unlock ok");
     Ok(())

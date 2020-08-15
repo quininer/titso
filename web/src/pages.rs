@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlTextAreaElement, KeyboardEvent };
+use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlAnchorElement, HtmlTextAreaElement, KeyboardEvent };
 use gloo_events::{ EventListener, EventListenerOptions };
 use crate::error::{ JsResult, cast_failed };
 use crate::{ op, Titso };
@@ -44,14 +44,13 @@ pub struct RulePage {
 }
 
 pub struct ProfilePage {
-    pub page: HtmlElement,
-    pub create: HtmlButtonElement,
+    pub create: HtmlAnchorElement,
     pub import_secret_file: HtmlInputElement,
-    pub import_secret: HtmlButtonElement,
-    pub export_secret: HtmlButtonElement,
+    pub import_secret: HtmlAnchorElement,
+    pub export_secret: HtmlAnchorElement,
     pub import_store_file: HtmlInputElement,
-    pub import_store: HtmlButtonElement,
-    pub export_store: HtmlButtonElement
+    pub import_store: HtmlAnchorElement,
+    pub export_store: HtmlAnchorElement
 }
 
 impl Layout {
@@ -73,9 +72,9 @@ impl Layout {
 impl UnlockPage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(UnlockPage {
-            page: query_selector(document, ".unlock-page")?,
-            password: query_selector(document, ".password")?,
-            color: query_selector(document, ".color-password")?
+            page: query_selector(document, "#unlock-page")?,
+            password: query_selector(document, "#input-password")?,
+            color: query_selector(document, "#color-password")?
         })
     }
 
@@ -110,10 +109,10 @@ impl UnlockPage {
 impl QueryPage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(QueryPage {
-            page: query_selector(document, ".query-page")?,
-            input: query_selector(document, ".query-input")?,
+            page: query_selector(document, "#query-page")?,
+            input: query_selector(document, "#query-input")?,
             show: ShowPage::new(document)?,
-            lock: query_selector(document, ".lock")?
+            lock: query_selector(document, "#lock")?
         })
     }
 
@@ -149,10 +148,10 @@ impl QueryPage {
 impl RulePage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(RulePage {
-            page: query_selector(document, ".rule-page")?,
-            count: query_selector(document, ".rule-count")?,
-            chars: query_selector(document, ".rule-chars")?,
-            len: query_selector(document, ".rule-len")?,
+            page: query_selector(document, "#rule-page")?,
+            count: query_selector(document, "#rule-count")?,
+            chars: query_selector(document, "#rule-chars")?,
+            len: query_selector(document, "#rule-len")?,
         })
     }
 }
@@ -160,13 +159,13 @@ impl RulePage {
 impl ShowPage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(ShowPage {
-            page: query_selector(document, ".show-page")?,
-            fixed: query_selector(document, ".rule-fixed")?,
+            page: query_selector(document, "#show-page")?,
+            fixed: query_selector(document, "#rule-fixed")?,
             rule: RulePage::new(document)?,
-            password: query_selector(document, ".show-password")?,
-            note: query_selector(document, ".show-note")?,
-            submit: query_selector(document, ".submit-item")?,
-            delete: query_selector(document, ".delete-item")?,
+            password: query_selector(document, "#show-password")?,
+            note: query_selector(document, "#show-note")?,
+            submit: query_selector(document, "#submit-item")?,
+            delete: query_selector(document, "#delete-item")?,
         })
     }
 
@@ -216,14 +215,13 @@ impl ShowPage {
 impl ProfilePage {
     pub fn new(document: &Document) -> JsResult<Self> {
         Ok(ProfilePage {
-            page: query_selector(document, ".profile-page")?,
-            create: query_selector(document, ".create-secret")?,
-            import_secret_file: query_selector(document, ".import-secret-file")?,
-            import_secret: query_selector(document, ".import-secret")?,
-            export_secret: query_selector(document, ".export-secret")?,
-            import_store_file: query_selector(document, ".import-store-file")?,
-            import_store: query_selector(document, ".import-store")?,
-            export_store: query_selector(document, ".export-store")?,
+            create: query_selector(document, "#create-secret")?,
+            import_secret_file: query_selector(document, "#import-secret-file")?,
+            import_secret: query_selector(document, "#import-secret")?,
+            export_secret: query_selector(document, "#export-secret")?,
+            import_store_file: query_selector(document, "#import-store-file")?,
+            import_store: query_selector(document, "#import-store")?,
+            export_store: query_selector(document, "#export-store")?,
         })
     }
 
