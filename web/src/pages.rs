@@ -79,6 +79,8 @@ impl UnlockPage {
     }
 
     pub fn hook(&self, titso: Rc<Titso>) {
+        let titso2 = titso.clone();
+
         EventListener::new_with_options(
             self.password.as_ref(),
             "keydown",
@@ -101,6 +103,18 @@ impl UnlockPage {
                     },
                     _ => ()
                 }
+            }
+        ).forget();
+
+        EventListener::new(
+            self.color.as_ref(),
+            "click",
+            move |_event| {
+                let titso = titso2.clone();
+
+                spawn_local(async move {
+                    op::unlock_submit(&titso).await.unwrap()
+                })
             }
         ).forget();
     }
