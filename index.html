@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Titso Web</title>
+		<link rel="icon" href="titso.svg">
+		<link rel="stylesheet" href="css/bulma.min.css"></link>
+		<link rel="manifest" href="titso.webmanifest">
+	</head>
+	<body>
+		<section class="hero is-dark is-bold fullheight">
+			<div class="hero-body container">
+				<p class="title">Titso Web</p>
+			</div>
+		</section>
+		<section>
+			<div class="dropdown is-hoverable">
+				<div class="dropdown-trigger">
+					<button class="button" aria-haspopup="true" aria-controls="dropdown-menu">
+						<span>Profile</span>
+					</button>
+				</div>
+				<div class="dropdown-menu is-right" role="menu">
+					<div class="dropdown-content">
+						<a id="create-secret" class="dropdown-item">Create new profile</a>
+						<a id="import-secret" class="dropdown-item">Import secret</a>
+						<a id="export-secret" class="dropdown-item">Export secret</a>
+						<a id="import-store" class="dropdown-item">Import store</a>
+						<a id="export-store" class="dropdown-item">Export store</a>
+					</div>
+				</div>
+				<input id="import-secret-file" type="file" hidden />
+				<input id="import-store-file" type="file" hidden />
+			</div>
+		</section>
+		<section>
+			<div id="unlock-page" class="container">
+				<div class="field">
+				<p class="control has-icons-right">
+					<input
+						id="input-password" type="password"
+						class="input is-large"
+						placeholder="Unlock Password..."
+						required autofocus disabled
+					/>
+					<span class="icon is-right">
+						<i id="color-password" class="fas fa-home">鎖</i>
+					</span>
+				</p>
+				</div>
+			</div>
+		</section>
+		<section class="container">
+			<div id="query-page" hidden>
+				<div class="field">
+					<input
+						id="query-input" type="search"
+						class="input is-large"
+						placeholder="Query Tags..."
+						required autofocus
+					/>
+				</div>
+				<div class="box">
+					<div id="show-page" hidden>
+						<div class="field is-pulled-right">
+							<label class="checkbox">
+								<input id="rule-fixed", type="checkbox" />
+								Use fixed password
+							</label>
+						</div>
+						<div id="rule-page">
+							<div class="field is-horizontal">
+								<div class="field">
+									<label class="label">Count</label>
+									<div class="control">
+										<input id="rule-count" type="number" class="input" />
+									</div>
+								</div>
+								<div class="field">
+									<label class="label">Length</label>
+									<div class="control">
+										<input id="rule-len" type="number" class="input" />
+									</div>
+								</div>
+								<div class="field">
+									<label class="label">Available Chars</label>
+									<div class="control">
+										<input id="rule-chars" class="input" />
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<label class="label">Password</label>
+							<div class="control">
+								<input id="show-password" type="password" class="input" required readonly />
+							</div>
+						</div>
+
+						<div class="field">
+							<label class="label">Note</label>
+							<div class="control">
+								<textarea id="show-note" class="textarea" placeholder="Any string..." ></textarea>
+							</div>
+						</div>
+
+						<div class="field is-grouped">
+							<div class="control">
+								<button id="submit-item" class="button is-link">Submit</button>
+							</div>
+							<div class="control">
+								<button id="delete-item" class="button is-link is-light">Delete</button>
+							</div>
+						</div>
+					</div>
+					<button id="lock" class="button is-primary is-pulled-right">Lock</button>
+				</div>
+			</div>
+		</section>
+		<script type="module">
+			import { start, default as init } from './pkg/titso_web.js';
+			async function run() {
+				await init('./pkg/titso_web_bg.wasm');
+				start();
+			}
+
+			run();
+		</script>
+		<script>
+			if('serviceWorker' in navigator) {
+				navigator.serviceWorker.register('./sw.js');
+			};
+		</script>
+	</body>
+</html>

@@ -1,0 +1,13 @@
+{
+    "name": "Titso Password Manager",
+    "short_name": "titso",
+    "description": "A Gimli-based password manager.",
+    "icons": [
+        {
+            "src": "titso.png",
+            "sizes": "256x256",
+			"type": "image/png"
+        }
+    ],
+    "start_url": "/titso/index.html"
+}
