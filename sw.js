@@ -2,6 +2,8 @@ var CACHE_NAME = "titso-0.0.4";
 var APP_SHELL_FILES = [
 	"/titso/",
 	"/titso/index.html",
+	"/titso/titso.svg",
+	"/titso/titso.png",
 	"/titso/pkg/titso_web.js",
 	"/titso/pkg/titso_web_bg.js",
 	"/titso/pkg/titso_web_bg.wasm",
@@ -11,7 +13,7 @@ var APP_SHELL_FILES = [
 self.addEventListener('install', function(e) {
 	console.log('[Service Worker] Install');
 	e.waitUntil(
-		caches.open(cacheName).then(function(cache) {
+		caches.open(CACHE_NAME).then(function(cache) {
 			console.log('[Service Worker] Caching all: app shell and content');
 			return cache.addAll(APP_SHELL_FILES);
 		})
@@ -35,7 +37,7 @@ self.addEventListener('fetch', (e) => {
 		caches.match(e.request).then((r) => {
 			console.log('[Service Worker] Fetching resource: '+e.request.url);
 			return r || fetch(e.request).then((response) => {
-				return caches.open(cacheName).then((cache) => {
+				return caches.open(CACHE_NAME).then((cache) => {
 					console.log('[Service Worker] Caching new resource: '+e.request.url);
 					cache.put(e.request, response.clone());
 					return response;
