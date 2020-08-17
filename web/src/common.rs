@@ -1,9 +1,48 @@
+use std::fmt;
 use std::ops::Deref;
 use std::cell::Cell;
 use getrandom::getrandom;
 use seckey::zero;
 use crate::error::JsResult;
+use crate::Titso;
 
+
+pub trait AlertExt {
+    type Ok;
+    type Err: fmt::Debug;
+
+    fn unwrap_alert(self, titso: &Titso) -> Self::Ok;
+}
+
+impl<T, E: fmt::Debug> AlertExt for Result<T, E> {
+    type Ok = T;
+    type Err = E;
+
+    #[inline]
+    fn unwrap_alert(self, titso: &Titso) -> T {
+        #[cold]
+        fn alert_panic(err: &dyn fmt::Debug, titso: &Titso) -> ! {
+            if let Ok(mut core) = titso.core.try_borrow_mut() {
+                core.take();
+            }
+
+            if let Ok(mut password) = titso.password.try_borrow_mut() {
+                password.take();
+            }
+
+            let msg = format!("{:?}", err);
+
+            let _ = titso.window.alert_with_message(&msg);
+
+            panic!("{}", msg);
+        }
+
+        match self {
+            Ok(t) => t,
+            Err(err) => alert_panic(&err, titso)
+        }
+    }
+}
 
 pub struct Password {
     bytes: Box<[u8]>,

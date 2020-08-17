@@ -19,11 +19,11 @@ getrandom = { version = "0.1", features = [ "wasm-bindgen" ] }
 serde_cbor = "0.11"
 serde_bytes = "0.11"
 
-wasm-bindgen = "*"
-wasm-bindgen-futures = "*"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 wee_alloc = "0.4"
 console_error_panic_hook = "0.1"
-js-sys = "*"
+js-sys = "0.3"
 web-sys = { version = "0.3", features = [
 	"Document",
 	"HtmlInputElement",
@@ -38,5 +38,4 @@ web-sys = { version = "0.3", features = [
 	"Url"
 ] }
 indexed-kv = { git = "https://github.com/quininer/indexed-kv" }
-gloo-events = "*"
-gloo-timers = "*"
+gloo-events = "0.1"

@@ -74,10 +74,10 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
     *titso.core.borrow_mut() = Some(Core::open(&password, &secret)?);
 
     titso.layout.unlock.password.set_value("");
-    titso.layout.unlock.page.set_hidden(true);
     titso.layout.unlock.color
         .style()
         .set_property("color", "rgb(0, 0, 0)")?;
+    titso.layout.unlock.page.set_hidden(true);
     titso.layout.query.page.set_hidden(false);
 
     debug!("unlock ok");

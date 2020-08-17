@@ -4,6 +4,7 @@ use wasm_bindgen_futures::spawn_local;
 use web_sys::{ Document, HtmlElement, HtmlInputElement, HtmlButtonElement, HtmlAnchorElement, HtmlTextAreaElement, KeyboardEvent };
 use gloo_events::{ EventListener, EventListenerOptions };
 use crate::error::{ JsResult, cast_failed };
+use crate::common::AlertExt;
 use crate::{ op, Titso };
 
 
@@ -93,13 +94,13 @@ impl UnlockPage {
                 let titso = titso.clone();
                 match key.as_deref() {
                     Some(b"Enter") => spawn_local(async move {
-                        op::unlock_submit(&titso).await.unwrap()
+                        op::unlock_submit(&titso).await.unwrap_alert(&titso)
                     }),
                     Some(b"Backspace") => {
-                        op::input_password(&titso, None).unwrap()
+                        op::input_password(&titso, None).unwrap_alert(&titso)
                     },
                     Some(c) if c.len() == 1 && c[0].is_ascii() && !c[0].is_ascii_control() => {
-                        op::input_password(&titso, Some(c[0])).unwrap()
+                        op::input_password(&titso, Some(c[0])).unwrap_alert(&titso)
                     },
                     _ => ()
                 }
@@ -113,7 +114,7 @@ impl UnlockPage {
                 let titso = titso2.clone();
 
                 spawn_local(async move {
-                    op::unlock_submit(&titso).await.unwrap()
+                    op::unlock_submit(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -143,7 +144,7 @@ impl QueryPage {
 
                 spawn_local(async move {
                     match key.as_deref() {
-                        Some("Enter") => op::query_submit(&titso).await.unwrap(),
+                        Some("Enter") => op::query_submit(&titso).await.unwrap_alert(&titso),
                         Some("Esc") | Some("Escape") => op::query_clear(&titso),
                         _ => ()
                     }
@@ -201,7 +202,7 @@ impl ShowPage {
                 let titso = titso2.clone();
 
                 spawn_local(async move {
-                    op::edit_item(&titso).await.unwrap()
+                    op::edit_item(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -213,7 +214,7 @@ impl ShowPage {
                 let titso = titso3.clone();
 
                 spawn_local(async move {
-                    op::delete_item(&titso).await.unwrap()
+                    op::delete_item(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -254,7 +255,7 @@ impl ProfilePage {
                 let titso = titso.clone();
 
                 spawn_local(async move {
-                    op::create_new_profile(&titso).await.unwrap()
+                    op::create_new_profile(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -278,7 +279,7 @@ impl ProfilePage {
                 let titso = titso1.clone();
 
                 spawn_local(async move {
-                    op::import_secret(&titso).await.unwrap()
+                    op::import_secret(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -290,7 +291,7 @@ impl ProfilePage {
                 let titso = titso2.clone();
 
                 spawn_local(async move {
-                    op::import_store(&titso).await.unwrap()
+                    op::import_store(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -302,7 +303,7 @@ impl ProfilePage {
                 let titso = titso3.clone();
 
                 spawn_local(async move {
-                    op::export_secret(&titso).await.unwrap()
+                    op::export_secret(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
@@ -314,7 +315,7 @@ impl ProfilePage {
                 let titso = titso4.clone();
 
                 spawn_local(async move {
-                    op::export_store(&titso).await.unwrap()
+                    op::export_store(&titso).await.unwrap_alert(&titso)
                 })
             }
         ).forget();
