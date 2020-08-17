@@ -1,4 +1,4 @@
-var CACHE_NAME = "titso-0.0.4";
+var CACHE_NAME = "titso-0.0.5";
 var APP_SHELL_FILES = [
 	"/titso/",
 	"/titso/index.html",
