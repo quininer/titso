@@ -1,11 +1,10 @@
-var CACHE_NAME = "titso-0.0.5";
+var CACHE_NAME = "titso-0.0.6";
 var APP_SHELL_FILES = [
 	"/titso/",
 	"/titso/index.html",
 	"/titso/titso.svg",
 	"/titso/titso.png",
 	"/titso/pkg/titso_web.js",
-	"/titso/pkg/titso_web_bg.js",
 	"/titso/pkg/titso_web_bg.wasm",
 	"/titso/css/bulma.min.css"
 ];
