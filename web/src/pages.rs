@@ -322,9 +322,15 @@ impl ProfilePage {
     }
 }
 
+#[inline]
 fn query_selector<T: JsCast>(document: &Document, input: &str) -> JsResult<T> {
-    document.query_selector(input)?
-        .ok_or_else(|| format!("not found: {:?}", input))?
+    fn query(document: &Document, input: &str) -> JsResult<web_sys::Element> {
+        document.query_selector(input)?
+            .ok_or_else(|| format!("not found: {:?}", input))
+            .map_err(Into::into)
+    }
+
+    query(document, input)?
         .dyn_into::<T>()
         .map_err(cast_failed)
 }

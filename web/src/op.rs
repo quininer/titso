@@ -25,7 +25,7 @@ pub fn input_password(titso: &Titso, key: Option<u8>) -> JsResult<()> {
     let mut password = titso.password.borrow_mut();
 
     if let Some(c) = key {
-        let _ = password.push(c);
+        password.push(c);
     } else {
         password.backspace();
     }
@@ -52,8 +52,7 @@ pub fn input_password(titso: &Titso, key: Option<u8>) -> JsResult<()> {
 
 pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
     debug!("unlock start");
-
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let secret = titso.db.get(b"secret").await?;
     let secret = if secret.length() > 0 {
@@ -100,8 +99,7 @@ pub async fn query_submit(titso: &Titso) -> JsResult<()> {
     }
 
     debug!("query start");
-
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let tags = titso.layout.query.input.value();
     let tags = take_tags(&tags);
@@ -206,8 +204,7 @@ pub async fn edit_item(titso: &Titso) -> JsResult<()> {
 
 async fn edit_item2(titso: &Titso) -> JsResult<()> {
     debug!("edit start");
-
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let tags = titso.layout.query.input.value();
     let tags = take_tags(&tags);
@@ -262,8 +259,7 @@ async fn edit_item2(titso: &Titso) -> JsResult<()> {
 
 pub async fn delete_item(titso: &Titso) -> JsResult<()> {
     debug!("delete start");
-
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let tags = titso.layout.query.input.value();
     let tags = take_tags(&tags);
@@ -316,8 +312,7 @@ pub fn lock_page(titso: &Titso) {
 
 pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
     debug!("create start");
-
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     if titso.db.get(b"secret").await?.length() > 0 {
         titso.window.alert_with_message("The profile already exists!")?;
@@ -352,8 +347,7 @@ pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
 
 pub async fn import_secret(titso: &Titso) -> JsResult<()> {
     debug!("import secret start");
-
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     if titso.db.get(b"secret").await?.length() > 0 {
         titso.window.alert_with_message("The profile already exists!")?;
@@ -377,7 +371,7 @@ pub async fn import_secret(titso: &Titso) -> JsResult<()> {
 
 pub async fn export_secret(titso: &Titso) -> JsResult<()> {
     debug!("export secret start");
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let buf = titso.db.get(b"secret").await?;
 
@@ -404,7 +398,7 @@ pub async fn import_store(titso: &Titso) -> JsResult<()> {
     type StoreList<'a> = Vec<(&'a Bytes, &'a Bytes)>;
 
     debug!("import store start");
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let fd = titso.layout.profile.import_store_file
         .files()
@@ -431,7 +425,7 @@ pub async fn export_store(titso: &Titso) -> JsResult<()> {
     type StoreList = Vec<(ByteBuf, ByteBuf)>;
 
     debug!("export store start");
-    let _guard = titso.defense.acquire()?;
+    let _guard = titso.defense.acquire().await;
 
     let mut iter = titso.db.find(b"").await?;
     let mut storelist: StoreList = Vec::with_capacity(8);

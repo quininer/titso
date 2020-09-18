@@ -1,9 +1,12 @@
 use std::fmt;
+use std::pin::Pin;
 use std::ops::Deref;
-use std::cell::Cell;
+use std::cell::{ Cell, RefCell };
+use std::future::Future;
+use std::task::{ Waker, Poll, Context };
+use std::collections::VecDeque;
 use getrandom::getrandom;
 use seckey::zero;
-use crate::error::JsResult;
 use crate::Titso;
 
 
@@ -59,13 +62,10 @@ impl Password {
         }
     }
 
-    pub fn push(&mut self, c: u8) -> Result<(), u8> {
+    pub fn push(&mut self, c: u8) {
         if self.len + 1 < self.bytes.len() {
             self.bytes[self.len] = c;
             self.len += 1;
-            Ok(())
-        } else {
-            Err(c)
         }
     }
 
@@ -104,30 +104,52 @@ impl Drop for PassGuard<'_> {
 }
 
 pub struct Lock {
-    inner: Cell<bool>
+    flag: Cell<bool>,
+    queue: RefCell<VecDeque<Waker>>
 }
 
-pub struct LockGuard<'a>(&'a Cell<bool>);
+pub struct LockGuard<'a>(&'a Lock);
 
 impl Lock {
-    pub const fn new() -> Lock {
+    pub fn new() -> Lock {
         Lock {
-            inner: Cell::new(true)
+            flag: Cell::new(false),
+            queue: RefCell::new(VecDeque::new())
         }
     }
 
-    pub fn acquire(&self) -> JsResult<LockGuard<'_>> {
-        if self.inner.replace(false) {
-            Ok(LockGuard(&self.inner))
-        } else {
-            Err("status is locked".into())
+    pub async fn acquire(&self) -> LockGuard<'_> {
+        struct Acquire<'a>(&'a Lock);
+
+        impl<'a> Future for Acquire<'a> {
+            type Output = LockGuard<'a>;
+
+            fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+                let Acquire(this) = self.get_mut();
+                let mut queue = this.queue.borrow_mut();
+
+                if queue.is_empty() && !this.flag.replace(true) {
+                    Poll::Ready(LockGuard(this))
+                } else {
+                    queue.push_back(cx.waker().clone());
+                    Poll::Pending
+                }
+            }
         }
+
+        Acquire(self).await
     }
 }
 
 impl Drop for LockGuard<'_> {
     fn drop(&mut self) {
-        self.0.set(true);
+        self.0.flag.set(false);
+
+        let mut queue = self.0.queue.borrow_mut();
+
+        if let Some(waker) = queue.pop_front() {
+            waker.wake();
+        }
     }
 }
 
@@ -135,7 +157,7 @@ pub fn take_tags(tags: &str) -> Vec<&str> {
     let mut tags = tags
         .split_whitespace()
         .collect::<Vec<_>>();
-    tags.sort();
+    tags.sort_unstable();
     tags.dedup();
     tags
 }
