@@ -23,28 +23,28 @@ impl<T, E: fmt::Debug> AlertExt for Result<T, E> {
 
     #[inline]
     fn unwrap_alert(self, titso: &Titso) -> T {
-        #[cold]
-        fn alert_panic(err: &dyn fmt::Debug, titso: &Titso) -> ! {
-            if let Ok(mut core) = titso.core.try_borrow_mut() {
-                core.take();
-            }
-
-            if let Ok(mut password) = titso.password.try_borrow_mut() {
-                password.take();
-            }
-
-            let msg = format!("{:?}", err);
-
-            let _ = titso.window.alert_with_message(&msg);
-
-            panic!("{}", msg);
-        }
-
         match self {
             Ok(t) => t,
             Err(err) => alert_panic(&err, titso)
         }
     }
+}
+
+#[cold]
+fn alert_panic(err: &dyn fmt::Debug, titso: &Titso) -> ! {
+    if let Ok(mut core) = titso.core.try_borrow_mut() {
+        core.take();
+    }
+
+    if let Ok(mut password) = titso.password.try_borrow_mut() {
+        password.take();
+    }
+
+    let msg = format!("{:?}", err);
+
+    let _ = titso.window.alert_with_message(&msg);
+
+    panic!("{}", msg);
 }
 
 pub struct Password {
