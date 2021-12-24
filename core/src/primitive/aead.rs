@@ -4,7 +4,7 @@ use std::mem;
 use arrayref::{ array_ref, array_mut_ref };
 use gimli_permutation::{ gimli, S };
 use seckey::{ zero, CmpKey };
-use crate::common::with;
+use crate::util::with;
 
 pub const ALL: usize = 48;
 pub const RATE: usize = 16;

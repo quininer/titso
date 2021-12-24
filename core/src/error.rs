@@ -1,14 +1,16 @@
-use snafu::Snafu;
+use thiserror::Error;
 
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Snafu)]
-#[snafu(visibility = "pub(crate)")]
+#[derive(Debug, Error)]
 pub enum Error {
-    #[snafu(display("Decryption Failed"))]
-    Decrypt {},
+    #[error("decrypt failed")]
+    DecryptFailed,
 
-    #[snafu(display("Cbor ser/de Failed: {}", source))]
-    Cbor { source: serde_cbor::Error }
+    #[error("cbor encode error: {0}")]
+    EncodeFailed(#[from] cbor4ii::EncodeError<std::collections::TryReserveError>),
+
+    #[error("cbor decode error: {0}")]
+    DecodeFailed(#[from] cbor4ii::DecodeError<std::convert::Infallible>)
 }

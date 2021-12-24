@@ -1,7 +1,7 @@
 use gimli_permutation::{ gimli, S };
 use gimli_hash::GimliHash;
 use seckey::zero;
-use crate::common::with;
+use crate::util::with;
 
 pub const HASH_ALG: u8 = 0x01;
 pub const RATE: usize = 16;

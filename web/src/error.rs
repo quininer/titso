@@ -52,9 +52,17 @@ impl From<titso_core::error::Error> for JsError {
     }
 }
 
-impl From<serde_cbor::Error> for JsError {
+impl From<cbor4ii::EncodeError<std::collections::TryReserveError>> for JsError {
     #[inline]
-    fn from(val: serde_cbor::Error) -> JsError {
+    fn from(val: cbor4ii::EncodeError<std::collections::TryReserveError>) -> JsError {
+        cast_debug(&val)
+    }
+}
+
+
+impl From<cbor4ii::DecodeError<std::convert::Infallible>> for JsError {
+    #[inline]
+    fn from(val: cbor4ii::DecodeError<std::convert::Infallible>) -> JsError {
         cast_debug(&val)
     }
 }

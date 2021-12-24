@@ -410,7 +410,7 @@ pub async fn import_store(titso: &Titso) -> JsResult<()> {
     let buf = Uint8Array::new(&buf);
     let buf = buf.to_vec();
 
-    let storelist: StoreList = serde_cbor::from_slice(&buf)?;
+    let storelist: StoreList = cbor4ii::serde::from_slice(&buf)?;
 
     for (k, v) in storelist {
         let v = Uint8Array::from(v.as_ref());
@@ -445,7 +445,7 @@ pub async fn export_store(titso: &Titso) -> JsResult<()> {
         return Ok(())
     }
 
-    let buf = serde_cbor::to_vec(&storelist)?;
+    let buf = cbor4ii::serde::to_vec(Vec::new(), &storelist)?;
     let buf = Uint8Array::from(buf.as_slice());
     let arr = Array::new();
     arr.push(buf.as_ref());

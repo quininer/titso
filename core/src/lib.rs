@@ -1,18 +1,17 @@
-mod common;
+mod util;
 pub mod error;
 pub mod primitive;
 pub mod shield;
 pub mod packet;
 
-pub use common::suggest;
+pub use util::suggest;
 
-use snafu::ResultExt;
-use serde_cbor as cbor;
+use cbor4ii::serde as cbor;
 use rand_core::{ RngCore, CryptoRng };
 use arrayref::{ array_ref, array_mut_ref };
 use seckey::zero;
 use shield::{ SecShield, SecShieldGuard };
-use common::generate;
+use util::generate;
 use primitive::{
     kdf::Kdf,
     keyedhash::KeyedHash,
@@ -50,8 +49,7 @@ pub struct TitsoRef<'a> {
 
 impl Titso {
     pub fn open(password: &[u8], buf: &[u8]) -> error::Result<Titso> {
-        let MasterSecret { salt, secret } = cbor::from_slice(buf)
-            .context(error::Cbor)?;
+        let MasterSecret { salt, secret } = cbor::from_slice(buf)?;
         let salt = array_ref!(salt, 0, 32);
         let secret = array_ref!(secret, 0, 32);
 
@@ -85,8 +83,8 @@ impl Titso {
             }
         });
 
-        let buf = cbor::to_vec(&MasterSecret { salt: &salt, secret: &secret })
-            .context(error::Cbor)?;
+        let buf = Vec::with_capacity(96);
+        let buf = cbor::to_vec(buf, &MasterSecret { salt: &salt, secret: &secret })?;
 
         zero(&mut salt[..]);
         zero(&mut secret[..]);
@@ -158,9 +156,9 @@ impl TitsoRef<'_> {
         if Aead::new(mkey, &aead_tag)
             .decrypt(b"item", buf, &atag)
         {
-            cbor::from_slice(&buf).context(error::Cbor)
+            cbor::from_slice(&buf).map_err(Into::into)
         } else {
-            Err(error::Error::Decrypt {})
+            Err(error::Error::DecryptFailed)
         }
     }
 
@@ -168,8 +166,8 @@ impl TitsoRef<'_> {
         let mkey = array_ref!(&self.mkey, 0, 32);
         let Tag(aead_tag) = self.tag("aead", tags);
 
-        let mut value = vec![0; primitive::aead::TAG_LENGTH];
-        cbor::to_writer(&mut value, item).context(error::Cbor)?;
+        let value = vec![0; primitive::aead::TAG_LENGTH];
+        let mut value = cbor::to_vec(value, item)?;
 
         let (atag, buf) = value.split_at_mut(primitive::aead::TAG_LENGTH);
         let atag = array_mut_ref!(atag, 0, primitive::aead::TAG_LENGTH);

@@ -1,7 +1,7 @@
 use arrayref::array_mut_ref;
 use gimli_permutation::{ gimli, S };
 use seckey::zero;
-use crate::common::with;
+use crate::util::with;
 use crate::primitive::aead::{ RATE, KEY_LENGTH, NONCE_LENGTH, init };
 
 
