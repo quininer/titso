@@ -1,7 +1,6 @@
-use gimli_permutation::{ gimli, S };
+use gimli_permutation::{ SIZE, gimli, state_with as with };
 use gimli_hash::GimliHash;
 use seckey::zero;
-use crate::util::with;
 
 pub const HASH_ALG: u8 = 0x01;
 pub const RATE: usize = 16;
@@ -31,7 +30,7 @@ impl Kdf {
     }
 
     pub fn derive(&self, passwd: &[u8], salt: &[u8; 32], output: &mut [u8; 32]) {
-        let mut state = [0; S];
+        let mut state = [0; SIZE];
 
         // init state
         let mut hasher = self.hasher.clone();

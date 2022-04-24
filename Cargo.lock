@@ -81,20 +81,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "gimli-hash"
-version = "0.1.5"
+name = "gimli-aead"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea7abfdd992753d22f4ab5c0ae20f0ece8ca8b7df0fdc853894d70bbbac3dadb"
+checksum = "1d104dbce21bc5de7e16663e3143e09723e8ca0787e30d3d354315217dffb93a"
 dependencies = [
- "byteorder",
+ "gimli-permutation",
+]
+
+[[package]]
+name = "gimli-hash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e30a44e456606c60d8754c8e77e9dc0e9fc2243da680e92d5d50a2bd9ceb0cf4"
+dependencies = [
  "gimli-permutation",
 ]
 
 [[package]]
 name = "gimli-permutation"
-version = "0.1.7"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e12f5f2605b0318fe9a6ac6e3e2ca6ea63846070539e173793dd5600cb18cc5"
+checksum = "ee7d806f3a66665f695f505692b213d691eec7eb4b6488f7b5be9313f50e5c68"
 
 [[package]]
 name = "gloo-events"
@@ -266,6 +274,7 @@ dependencies = [
  "byteorder",
  "cbor4ii",
  "getrandom",
+ "gimli-aead",
  "gimli-hash",
  "gimli-permutation",
  "once_cell",
