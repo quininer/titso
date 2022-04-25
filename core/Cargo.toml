@@ -2,7 +2,7 @@
 name = "titso-core"
 version = "0.2.0"
 authors = ["quininer <quininer@live.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,14 +14,6 @@ serde_bytes = "0.11"
 gimli-permutation = { version = "0.2" }
 gimli-hash = "0.2"
 gimli-aead = "0.2"
-
-# remove it
-seckey = { version = "0.11.1", default-features = false, features = [ "use_std" ] }
-getrandom = "0.2"
-rand_core = "0.6"
-byteorder = "1"
-once_cell = "1"
-arrayref = "0.3"
 
 [dev-dependencies]
 anyhow = "1"

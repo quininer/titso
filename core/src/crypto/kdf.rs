@@ -1,6 +1,5 @@
 use gimli_permutation::{ SIZE, gimli, state_with as with };
 use gimli_hash::GimliHash;
-use seckey::zero;
 
 pub const HASH_ALG: u8 = 0x01;
 pub const RATE: usize = 16;
@@ -24,11 +23,6 @@ impl Default for Kdf {
 }
 
 impl Kdf {
-    pub fn with_hasher(&mut self, hasher: GimliHash) -> &mut Kdf {
-        self.hasher = hasher;
-        self
-    }
-
     pub fn derive(&self, passwd: &[u8], salt: &[u8; 32], output: &mut [u8; 32]) {
         let mut state = [0; SIZE];
 
@@ -56,7 +50,6 @@ impl Kdf {
 
         with(&mut state, |state| {
             output.copy_from_slice(&state[RATE..][..32]);
-            zero(&mut state[..]);
         });
     }
 }

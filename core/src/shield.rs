@@ -1,6 +1,7 @@
 use gimli_aead::GimliAead;
 use gimli_hash::GimliHash;
 use crate::{ Config, SecBytes };
+use crate::util::ScopeZeroed;
 
 
 const SHIELD_LENGTH: usize = 16 * 1024;
@@ -8,12 +9,14 @@ const SHIELD_LENGTH: usize = 16 * 1024;
 pub struct Shield {
     zero: fn(&mut [u8]),
     prekey: Box<[u8]>,
-    cachekey: Box<[u8; 32]>,
     buf: Box<dyn SecBytes>,
     tag: [u8; 16]
 }
 
-pub struct Ready<'a>(&'a mut Shield);
+pub struct Ready<'a> {
+    shield: &'a mut Shield,
+    cachekey: Box<[u8; 32]>
+}
 
 impl Shield {
     pub fn new(config: &Config, mut buf: Box<dyn SecBytes>) -> Shield {
@@ -24,31 +27,33 @@ impl Shield {
         hasher.update(&prekey[..32]);
         hasher.finalize(&mut prekey[..]);
 
-        let mut cachekey = Box::new([0; 32]);
-        let buf_ref = buf.access_and_unlock();
+        let mut cachekey = ScopeZeroed([0; 32], config.zero);
+        let cachekey = cachekey.get_mut();
+        let buf_ref = buf.get_mut_and_unlock();
         let nonce = derive_nonce(buf_ref);
-        derive_key(&prekey, &nonce, &mut cachekey);
-        let tag = GimliAead::new(&cachekey, &nonce).encrypt(&[], buf_ref);
+        derive_key(&prekey, &nonce, cachekey);
+        let tag = GimliAead::new(cachekey, &nonce).encrypt(&[], buf_ref);
         buf.lock();
-        (config.zero)(&mut cachekey[..]);
 
         Shield {
             zero: config.zero,
-            prekey, cachekey, buf, tag
+            prekey, buf, tag
         }
     }
 
     pub fn ready(&mut self) -> Option<Ready<'_>> {
-        let buf_ref = self.buf.access_and_unlock();
+        let mut cachekey = Box::new([0; 32]);
+        let buf_ref = self.buf.get_mut_and_unlock();
         let nonce = derive_nonce(buf_ref);
-        derive_key(&self.prekey, &nonce, &mut self.cachekey);
+        derive_key(&self.prekey, &nonce, &mut cachekey);
 
-        let result = GimliAead::new(&self.cachekey, &nonce).decrypt(&[], buf_ref, &self.tag);
+        let result = GimliAead::new(&cachekey, &nonce).decrypt(&[], buf_ref, &self.tag);
+
+        self.buf.lock();
 
         if result {
-            Some(Ready(self))
+            Some(Ready { shield: self, cachekey })
         } else {
-            self.buf.lock();
             None
         }
     }
@@ -56,7 +61,7 @@ impl Shield {
 
 fn derive_key(prekey: &[u8], nonce: &[u8; 16], outkey: &mut [u8; 32]) {
     let mut hasher = GimliHash::default();
-    hasher.update("memsec shield key");
+    hasher.update(b"memsec shield key");
     hasher.update(&nonce[..]);
     hasher.update(prekey);
     hasher.finalize(outkey);
@@ -72,19 +77,19 @@ fn derive_nonce(buf: &[u8]) -> [u8; 16] {
 }
 
 impl Ready<'_> {
-    pub fn get(&mut self) -> &mut [u8] {
-        (self.0).buf.access_and_unlock()
+    pub fn get(&self) -> &[u8; 32] {
+        self.shield.buf.get_and_unlock()
     }
 }
 
 impl Drop for Ready<'_> {
     fn drop(&mut self) {
-        let buf_ref = (self.0).buf.access_and_unlock();
+        let buf_ref = self.shield.buf.get_mut_and_unlock();
         let nonce = derive_nonce(buf_ref);
 
-        let tag = GimliAead::new(&(self.0).cachekey, &nonce).encrypt(&[], buf_ref);
-        (self.0).tag.copy_from_slice(&tag);
-        (self.0).buf.lock();
-        ((self.0).zero)(&mut (self.0).cachekey[..]);
+        let tag = GimliAead::new(&self.cachekey, &nonce).encrypt(&[], buf_ref);
+        self.shield.tag.copy_from_slice(&tag);
+        self.shield.buf.lock();
+        (self.shield.zero)(&mut self.cachekey[..]);
     }
 }
