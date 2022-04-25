@@ -11,7 +11,7 @@ use wasm_bindgen_futures::spawn_local;
 use web_sys::Window;
 use indexed_kv::IndexedKv;
 use seckey::ZeroAllocator;
-use titso_core::Titso as Core;
+use titso_core::Core as Core;
 use error::JsResult;
 use common::{ Password, Lock };
 use pages::Layout;
@@ -27,6 +27,26 @@ pub struct Titso {
     db: IndexedKv,
     password: RefCell<Password>,
     defense: Lock
+}
+
+static FUNCTIONS: titso_core::Functions = titso_core::Functions {
+    rng: |buf| getrandom::getrandom(buf).unwrap(),
+    zero: seckey::zero,
+    malloc: || Box::new(HeapBytes([0; 32]))
+};
+
+struct HeapBytes([u8; 32]);
+
+impl titso_core::SecBytes for HeapBytes {
+    fn get_and_unlock(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    fn get_mut_and_unlock(&mut self) -> &mut [u8; 32] {
+        &mut self.0
+    }
+
+    fn lock(&mut self) {}
 }
 
 impl Titso {

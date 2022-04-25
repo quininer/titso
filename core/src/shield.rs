@@ -1,6 +1,6 @@
 use gimli_aead::GimliAead;
 use gimli_hash::GimliHash;
-use crate::{ Config, SecBytes };
+use crate::{ Functions, SecBytes };
 use crate::util::ScopeZeroed;
 
 
@@ -19,15 +19,15 @@ pub struct Ready<'a> {
 }
 
 impl Shield {
-    pub fn new(config: &Config, mut buf: Box<dyn SecBytes>) -> Shield {
+    pub fn new(fns: &Functions, mut buf: Box<dyn SecBytes>) -> Shield {
         let mut prekey = vec![0; SHIELD_LENGTH].into_boxed_slice();
         let mut hasher = GimliHash::default();
-        (config.rng)(&mut prekey[..32]);
+        (fns.rng)(&mut prekey[..32]);
         hasher.update(b"memsec shield prekey");
         hasher.update(&prekey[..32]);
         hasher.finalize(&mut prekey[..]);
 
-        let mut cachekey = ScopeZeroed([0; 32], config.zero);
+        let mut cachekey = ScopeZeroed([0; 32], fns.zero);
         let cachekey = cachekey.get_mut();
         let buf_ref = buf.get_mut_and_unlock();
         let nonce = derive_nonce(buf_ref);
@@ -36,7 +36,7 @@ impl Shield {
         buf.lock();
 
         Shield {
-            zero: config.zero,
+            zero: fns.zero,
             prekey, buf, tag
         }
     }

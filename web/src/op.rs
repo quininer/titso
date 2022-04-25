@@ -3,13 +3,12 @@ use wasm_bindgen_futures::JsFuture;
 use js_sys::{ Array, ArrayBuffer, Uint8Array };
 use web_sys::{ Url, File };
 use serde_bytes::{ Bytes, ByteBuf };
-use titso_core::Titso as Core;
-use titso_core::primitive::keyedhash::KeyedHash;
-use titso_core::primitive::rng::HashRng;
+use gimli_hash::GimliHash;
+use titso_core::Core;
 use titso_core::packet::{ Tag, Item, Rule, Type };
 use crate::error::JsResult;
 use crate::common::{ take_tags, padding };
-use crate::Titso;
+use crate::{ Titso, FUNCTIONS };
 
 
 pub fn input_password(titso: &Titso, key: Option<u8>) -> JsResult<()> {
@@ -35,8 +34,10 @@ pub fn input_password(titso: &Titso, key: Option<u8>) -> JsResult<()> {
     let color = mask_color(if password.is_empty() {
         0
     } else {
-        let mut hasher = KeyedHash::new(&[0x42; 32], b"titso password");
+        let mut hasher = GimliHash::default();
         let mut color = [0];
+        hasher.update(b"titso password");
+        hasher.fill_block();
         hasher.update(password);
         hasher.finalize(&mut color[..]);
         color[0]
@@ -70,7 +71,7 @@ pub async fn unlock_submit(titso: &Titso) -> JsResult<()> {
         return Ok(());
     }
 
-    *titso.core.borrow_mut() = Some(Core::open(&password, &secret)?);
+    *titso.core.borrow_mut() = Some(Core::open(&FUNCTIONS, &secret, &password)?);
 
     titso.layout.unlock.password.set_value("");
     titso.layout.unlock.color
@@ -115,16 +116,16 @@ pub async fn query_submit(titso: &Titso) -> JsResult<()> {
         .ok_or("titso core does not exist")?;
 
     let Tag(tag) = {
-        let core = core.ready();
+        let core = core.ready()?;
         core.store_tag(&tags)
     };
 
-    let core = core.ready();
+    let core = core.ready()?;
 
     let val = titso.db.get(&tag).await?;
     let state = if val.length() > 0 {
-        let val = val.to_vec();
-        match core.get(&tags, &val) {
+        let mut val = val.to_vec();
+        match core.get(&tags, &mut val) {
             Ok(item) => match item.password {
                 Type::Derive(rule) => QueryState::Render {
                     password: core.derive(&tags, &rule),
@@ -172,7 +173,13 @@ pub async fn query_submit(titso: &Titso) -> JsResult<()> {
         QueryState::New => {
             debug!("not found");
 
-            let rule = Rule::default();
+            let rule = Rule {
+                count: 0,
+                length: 16,
+                chars: "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ,.;-=_+?~!@#"
+                    .chars()
+                    .collect()
+            };
             let chars = rule.chars.into_iter().collect::<String>();
 
             titso.layout.query.show.fixed.set_checked(false);
@@ -244,7 +251,7 @@ async fn edit_item2(titso: &Titso) -> JsResult<()> {
         }
     };
 
-    let core = core.ready();
+    let core = core.ready()?;
 
     let Tag(tag) = core.store_tag(&tags);
     let val = core.put(&tags, &item)?;
@@ -275,7 +282,7 @@ pub async fn delete_item(titso: &Titso) -> JsResult<()> {
         .ok_or("titso core does not exist")?;
 
     let Tag(tag) = {
-        let core = core.ready();
+        let core = core.ready()?;
         core.store_tag(&tags)
     };
 
@@ -327,8 +334,7 @@ pub async fn create_new_profile(titso: &Titso) -> JsResult<()> {
         return Ok(());
     }
 
-    let mut rng = HashRng::random()?;
-    let (core, secret) = Core::init(&mut rng, &password)?;
+    let (core, secret) = Core::create(&FUNCTIONS, &password)?;
 
     titso.db.put(b"secret", Uint8Array::from(&secret[..])).await?;
 

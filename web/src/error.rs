@@ -45,9 +45,9 @@ impl From<getrandom::Error> for JsError {
     }
 }
 
-impl From<titso_core::error::Error> for JsError {
+impl From<titso_core::Error> for JsError {
     #[inline]
-    fn from(err: titso_core::error::Error) -> JsError {
+    fn from(err: titso_core::Error) -> JsError {
         cast_debug(&err)
     }
 }

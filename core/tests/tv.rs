@@ -1,4 +1,4 @@
-use titso_core::{ packet, Config, SecBytes, Core as Titso };
+use titso_core::{ packet, Functions, SecBytes, Core as Titso };
 
 
 const PASSWORD: &[u8] = b"testpass";
@@ -41,7 +41,7 @@ fn test_init_password_mkey() -> anyhow::Result<()> {
         COUNT.fetch_add(buf.len(), atomic::Ordering::SeqCst);
     }
 
-    let config = Config {
+    let config = Functions {
         rng, zero, malloc
     };
 
@@ -62,7 +62,7 @@ fn test_open_and_store_tag_and_more() -> anyhow::Result<()> {
         }
     }
 
-    let config = Config {
+    let config = Functions {
         rng, zero, malloc
     };
 

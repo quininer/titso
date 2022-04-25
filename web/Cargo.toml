@@ -11,12 +11,13 @@ crate-type = ["cdylib"]
 
 [dependencies]
 titso-core = { path = "../core" }
+gimli-hash = "0.2"
 seckey = { version = "0.11.2", default-features = false }
 
 log = "0.4"
 console_log = "0.2"
 getrandom = { version = "0.2", features = [ "wasm-bindgen", "js" ] }
-cbor4ii = { version = "0.2", features = [ "serde1", "use_alloc" ] }
+cbor4ii = { version = "0.2", features = [ "serde1", "use_std" ] }
 serde_bytes = "0.11"
 
 wasm-bindgen = "0.2"

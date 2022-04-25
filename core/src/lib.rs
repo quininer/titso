@@ -22,7 +22,7 @@ pub struct Ready<'a> {
     mkey: shield::Ready<'a>
 }
 
-pub struct Config {
+pub struct Functions {
     pub rng: fn(&mut [u8]),
     pub zero: fn(&mut [u8]),
     pub malloc: fn() -> Box<dyn SecBytes>
@@ -35,26 +35,26 @@ pub trait SecBytes: Send + 'static {
 }
 
 impl Core {
-    pub fn create(config: &Config, password: &[u8]) -> Result<(Core, Vec<u8>), Error> {
-        let mut salt = ScopeZeroed([0; 32], config.zero);
-        let mut secret = ScopeZeroed([0; 32], config.zero);
+    pub fn create(fns: &Functions, password: &[u8]) -> Result<(Core, Vec<u8>), Error> {
+        let mut salt = ScopeZeroed([0; 32], fns.zero);
+        let mut secret = ScopeZeroed([0; 32], fns.zero);
         let salt: &mut [u8; 32] = salt.get_mut();
         let secret = secret.get_mut();
 
-        (config.rng)(salt);
+        (fns.rng)(salt);
 
         Kdf::default().derive(password, salt, secret);
 
         let mkey = {
-            let mut mkey = (config.malloc)();
+            let mut mkey = (fns.malloc)();
             let mkey_ref = mkey.get_mut_and_unlock();
-            (config.rng)(mkey_ref);
+            (fns.rng)(mkey_ref);
 
             for i in 0..32 {
                 secret[i] ^= mkey_ref[i];
             }
 
-            Shield::new(config, mkey)
+            Shield::new(fns, mkey)
         };
 
         let secret_buf = {
@@ -67,7 +67,7 @@ impl Core {
         Ok((Core { mkey }, secret_buf))
     }
 
-    pub fn open(config: &Config, buf: &[u8], password: &[u8]) -> Result<Core, Error> {
+    pub fn open(fns: &Functions, buf: &[u8], password: &[u8]) -> Result<Core, Error> {
         let packet::MasterSecret { salt, secret } = cbor::from_slice(buf)
             .map_err(|_| Error::decode_error("master secret decode failed"))?;
         let salt: &[u8; 32] = salt.try_into()
@@ -76,7 +76,7 @@ impl Core {
             .map_err(|_| Error::decode_error("bad secret length"))?;
 
         let mkey = {
-            let mut mkey = (config.malloc)();
+            let mut mkey = (fns.malloc)();
             let mkey_ref = mkey.get_mut_and_unlock();
 
             Kdf::default().derive(password, salt, mkey_ref);
@@ -85,7 +85,7 @@ impl Core {
                 mkey_ref[i] ^= secret[i];
             }
 
-            Shield::new(config, mkey)
+            Shield::new(fns, mkey)
         };
 
         Ok(Core { mkey })

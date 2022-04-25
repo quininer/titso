@@ -263,6 +263,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "getrandom",
+ "gimli-hash",
  "gloo-events",
  "indexed-kv",
  "js-sys",
