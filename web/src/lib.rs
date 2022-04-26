@@ -46,7 +46,7 @@ impl titso_core::SecBytes for HeapBytes {
         &mut self.0
     }
 
-    fn lock(&mut self) {}
+    fn lock(&self) {}
 }
 
 impl Titso {

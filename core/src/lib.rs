@@ -31,7 +31,7 @@ pub struct Functions {
 pub trait SecBytes: Send + 'static {
     fn get_and_unlock(&self) -> &[u8; 32];
     fn get_mut_and_unlock(&mut self) -> &mut [u8; 32];
-    fn lock(&mut self);
+    fn lock(&self);
 }
 
 impl Core {
@@ -123,15 +123,15 @@ impl Ready<'_> {
     pub fn store_tag(&self, tags: &[impl AsRef<str>]) -> packet::Tag {
         let mkey = self.mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        tag(mkey, "store", &mut iter)
+        tag(&mkey, "store", &mut iter)
     }
 
     pub fn derive(&self, tags: &[impl AsRef<str>], rule: &packet::Rule) -> String {
         let mkey = self.mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        let packet::Tag(kdf_tag) = tag(mkey, "kdf", &mut iter);
+        let packet::Tag(kdf_tag) = tag(&mkey, "kdf", &mut iter);
 
-        let mut hasher = KeyedHash::new(mkey, b"derive");
+        let mut hasher = KeyedHash::new(&mkey, b"derive");
         hasher.update(&kdf_tag);
         hasher.update(&rule.count.to_le_bytes());
         hasher.update(&rule.length.to_le_bytes());
@@ -155,14 +155,14 @@ impl Ready<'_> {
     pub fn put(&self, tags: &[impl AsRef<str>], item: &packet::Item) -> Result<Vec<u8>, Error> {
         let mkey = self.mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        let packet::Tag(aead_tag) = tag(mkey, "aead", &mut iter);
+        let packet::Tag(aead_tag) = tag(&mkey, "aead", &mut iter);
 
         let value = vec![0; 16];
         let mut value = cbor::to_vec(value, item)
             .map_err(|_| Error::encode_error("put item encode failed"))?;
         let (atag, buf) = value.split_at_mut(16);
 
-        let atag2 = GimliAead::new(mkey, &aead_tag).encrypt(b"item", buf);
+        let atag2 = GimliAead::new(&mkey, &aead_tag).encrypt(b"item", buf);
         atag.copy_from_slice(&atag2);
 
         Ok(value)
@@ -171,7 +171,7 @@ impl Ready<'_> {
     pub fn get(&self, tags: &[impl AsRef<str>], value: &mut [u8]) -> Result<packet::Item, Error> {
         let mkey = self.mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        let packet::Tag(aead_tag) = tag(mkey, "aead", &mut iter);
+        let packet::Tag(aead_tag) = tag(&mkey, "aead", &mut iter);
 
         if value.len() <= 16 {
             return Err(Error::aead_failed("get item ciphertext too short"));
@@ -180,7 +180,7 @@ impl Ready<'_> {
         let (atag, buf) = value.split_at_mut(16);
         let atag: &[u8] = atag;
         let atag: &[u8; 16] = atag.try_into().unwrap();
-        let result = GimliAead::new(mkey, &aead_tag).decrypt(b"item", buf, atag);
+        let result = GimliAead::new(&mkey, &aead_tag).decrypt(b"item", buf, atag);
 
         if result {
             cbor::from_slice(buf)

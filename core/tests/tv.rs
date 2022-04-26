@@ -15,7 +15,7 @@ impl SecBytes for SimpleBytes {
         &mut self.0
     }
 
-    fn lock(&mut self) {}
+    fn lock(&self) {}
 }
 
 fn malloc() -> Box<dyn SecBytes> {

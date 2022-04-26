@@ -18,6 +18,10 @@ pub struct Ready<'a> {
     cachekey: Box<[u8; 32]>
 }
 
+pub struct ReadGuard<'a> {
+    buf: &'a dyn SecBytes
+}
+
 impl Shield {
     pub fn new(fns: &Functions, mut buf: Box<dyn SecBytes>) -> Shield {
         let mut prekey = vec![0; SHIELD_LENGTH].into_boxed_slice();
@@ -77,8 +81,8 @@ fn derive_nonce(buf: &[u8]) -> [u8; 16] {
 }
 
 impl Ready<'_> {
-    pub fn get(&self) -> &[u8; 32] {
-        self.shield.buf.get_and_unlock()
+    pub fn get(&self) -> ReadGuard<'_> {
+        ReadGuard { buf: &*self.shield.buf }
     }
 }
 
@@ -91,5 +95,19 @@ impl Drop for Ready<'_> {
         self.shield.tag.copy_from_slice(&tag);
         self.shield.buf.lock();
         (self.shield.zero)(&mut self.cachekey[..]);
+    }
+}
+
+impl std::ops::Deref for ReadGuard<'_> {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &Self::Target {
+        self.buf.get_and_unlock()
+    }
+}
+
+impl Drop for ReadGuard<'_> {
+    fn drop(&mut self) {
+        self.buf.lock();
     }
 }
