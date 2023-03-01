@@ -4,6 +4,7 @@ mod shield;
 mod error;
 pub mod packet;
 
+use std::marker::PhantomData;
 use cbor4ii::serde as cbor;
 use gimli_aead::GimliAead;
 use crypto::kdf::Kdf;
@@ -14,47 +15,54 @@ use util::ScopeZeroed;
 pub use error::Error;
 
 
-pub struct Core {
-    mkey: Shield
+pub trait SafeFeatures {
+    type SafeBytes: SafeBytes;
+
+    fn rng_fill(buf: &mut [u8]);
+    fn zero_bytes(buf: &mut [u8]);
+    fn safe_heap_alloc() -> Self::SafeBytes;
 }
 
-pub struct Ready<'a> {
-    mkey: shield::Ready<'a>
+pub trait SafeBytes {
+    type Ref<'a>: AsRef<[u8; 32]>
+        where Self: 'a;
+    type RefMut<'a>: AsMut<[u8; 32]>
+        where Self: 'a;
+
+    fn get<'a>(&'a self) -> Self::Ref<'a>;
+    fn get_mut<'a>(&'a mut self) -> Self::RefMut<'a>;
 }
 
-pub struct Functions {
-    pub rng: fn(&mut [u8]),
-    pub zero: fn(&mut [u8]),
-    pub malloc: fn() -> Box<dyn SecBytes>
+pub struct Core<F: SafeFeatures> {
+    mkey: Shield<F>,
+    _phantom: PhantomData<F>
 }
 
-pub trait SecBytes: Send + 'static {
-    fn get_and_unlock(&self) -> &[u8; 32];
-    fn get_mut_and_unlock(&mut self) -> &mut [u8; 32];
-    fn lock(&self);
-}
-
-impl Core {
-    pub fn create(fns: &Functions, password: &[u8]) -> Result<(Core, Vec<u8>), Error> {
-        let mut salt = ScopeZeroed([0; 32], fns.zero);
-        let mut secret = ScopeZeroed([0; 32], fns.zero);
+impl<F: SafeFeatures> Core<F> {
+    pub fn create(password: &[u8]) -> Result<(Core<F>, Vec<u8>), Error> {
+        let mut salt = ScopeZeroed([0; 32], F::zero_bytes);
+        let mut secret = ScopeZeroed([0; 32], F::zero_bytes);
         let salt: &mut [u8; 32] = salt.get_mut();
         let secret = secret.get_mut();
 
-        (fns.rng)(salt);
+        F::rng_fill(salt);
 
         Kdf::default().derive(password, salt, secret);
 
         let mkey = {
-            let mut mkey = (fns.malloc)();
-            let mkey_ref = mkey.get_mut_and_unlock();
-            (fns.rng)(mkey_ref);
+            let mut mkey = F::safe_heap_alloc();
 
-            for i in 0..32 {
-                secret[i] ^= mkey_ref[i];
+            {
+                let mut mkey_ref = mkey.get_mut();
+                let mkey_ref = mkey_ref.as_mut();
+                F::rng_fill(mkey_ref);
+
+                for i in 0..32 {
+                    secret[i] ^= mkey_ref[i];
+                }
             }
 
-            Shield::new(fns, mkey)
+            Shield::new(mkey)
         };
 
         let secret_buf = {
@@ -64,10 +72,10 @@ impl Core {
                 .map_err(|_| Error::encode_error("master secret encode failed"))?
         };
 
-        Ok((Core { mkey }, secret_buf))
+        Ok((Core { mkey, _phantom: PhantomData }, secret_buf))
     }
 
-    pub fn open(fns: &Functions, buf: &[u8], password: &[u8]) -> Result<Core, Error> {
+    pub fn open(buf: &[u8], password: &[u8]) -> Result<Core<F>, Error> {
         let packet::MasterSecret { salt, secret } = cbor::from_slice(buf)
             .map_err(|_| Error::decode_error("master secret decode failed"))?;
         let salt: &[u8; 32] = salt.try_into()
@@ -76,25 +84,23 @@ impl Core {
             .map_err(|_| Error::decode_error("bad secret length"))?;
 
         let mkey = {
-            let mut mkey = (fns.malloc)();
-            let mkey_ref = mkey.get_mut_and_unlock();
+            let mut mkey = F::safe_heap_alloc();
 
-            Kdf::default().derive(password, salt, mkey_ref);
+            {
+                let mut mkey_ref = mkey.get_mut();
+                let mkey_ref = mkey_ref.as_mut();
 
-            for i in 0..32 {
-                mkey_ref[i] ^= secret[i];
+                Kdf::default().derive(password, salt, mkey_ref);
+
+                for i in 0..32 {
+                    mkey_ref[i] ^= secret[i];
+                }
             }
 
-            Shield::new(fns, mkey)
+            Shield::new(mkey)
         };
 
-        Ok(Core { mkey })
-    }
-
-    pub fn ready(&mut self) -> Result<Ready<'_>, Error> {
-        let mkey = self.mkey.ready()
-            .ok_or_else(|| Error::aead_failed("memory shield check failed"))?;
-        Ok(Ready { mkey })
+        Ok(Core { mkey, _phantom: PhantomData })
     }
 }
 
@@ -118,75 +124,91 @@ fn tag(mkey: &[u8; 32], lable: &str, tags: &mut dyn Iterator<Item = &str>)
     packet::Tag(itag)
 }
 
-impl Ready<'_> {
+impl<F: SafeFeatures> Core<F> {
     #[inline]
-    pub fn store_tag(&self, tags: &[impl AsRef<str>]) -> packet::Tag {
-        let mkey = self.mkey.get();
+    pub fn store_tag(&mut self, tags: &[impl AsRef<str>]) -> packet::Tag {
+        let mkey = self.mkey.ready();
+        let mkey = mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        tag(&mkey, "store", &mut iter)
+        tag(mkey.as_ref(), "store", &mut iter)
     }
 
-    pub fn derive(&self, tags: &[impl AsRef<str>], rule: &packet::Rule) -> String {
-        let mkey = self.mkey.get();
-        let mut iter = tags.iter().map(|tag| tag.as_ref());
-        let packet::Tag(kdf_tag) = tag(&mkey, "kdf", &mut iter);
+    pub fn derive(&mut self, tags: &[impl AsRef<str>], rule: &packet::Rule) -> String {
+        fn derive_inner(mkey: &[u8; 32], tag: &packet::Tag, rule: &packet::Rule) -> String {
+            let mut hasher = KeyedHash::new(&mkey, b"derive");
+            hasher.update(&tag.0);
+            hasher.update(&rule.count.to_le_bytes());
+            hasher.update(&rule.length.to_le_bytes());
+            hasher.update(&rule.chars.iter()
+                .map(|c| c.len_utf8() as u32)
+                .sum::<u32>()
+                .to_le_bytes()
+            );
+            for c in &rule.chars {
+                let mut buf = [0; 4];
+                c.encode_utf8(&mut buf);
+                hasher.update(&buf);
+            }
+            let mut rng = HashRng::from(hasher.xof());
 
-        let mut hasher = KeyedHash::new(&mkey, b"derive");
-        hasher.update(&kdf_tag);
-        hasher.update(&rule.count.to_le_bytes());
-        hasher.update(&rule.length.to_le_bytes());
-        hasher.update(&rule.chars.iter()
-            .map(|c| c.len_utf8() as u32)
-            .sum::<u32>()
-            .to_le_bytes()
-        );
-        for c in &rule.chars {
-            let mut buf = [0; 4];
-            c.encode_utf8(&mut buf);
-            hasher.update(&buf);
+            (0..rule.length)
+                .map(|_| rule.chars[rng.next_u32() as usize % rule.chars.len()])
+                .collect()
         }
-        let mut rng = HashRng::from(hasher.xof());
 
-        (0..rule.length)
-            .map(|_| rule.chars[rng.next_u32() as usize % rule.chars.len()])
-            .collect()
+        let mkey = self.mkey.ready();
+        let mkey = mkey.get();
+        let mut iter = tags.iter().map(|tag| tag.as_ref());
+        let kdf_tag = tag(mkey.as_ref(), "kdf", &mut iter);
+
+        derive_inner(mkey.as_ref(), &kdf_tag, rule)
     }
 
-    pub fn put(&self, tags: &[impl AsRef<str>], item: &packet::Item) -> Result<Vec<u8>, Error> {
-        let mkey = self.mkey.get();
+    pub fn put(&mut self, tags: &[impl AsRef<str>], item: &packet::Item) -> Result<Vec<u8>, Error> {
+        fn put_inner(mkey: &[u8; 32], tag: &packet::Tag, item: &packet::Item) -> Result<Vec<u8>, Error> {
+            let value = vec![0; 16];
+            let mut value = cbor::to_vec(value, item)
+                .map_err(|_| Error::encode_error("put item encode failed"))?;
+            let (atag, buf) = value.split_at_mut(16);
+
+            let atag2 = GimliAead::new(&mkey, &tag.0).encrypt(b"item", buf);
+            atag.copy_from_slice(&atag2);
+
+            Ok(value)
+        }
+
+        let mkey = self.mkey.ready();
+        let mkey = mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        let packet::Tag(aead_tag) = tag(&mkey, "aead", &mut iter);
+        let aead_tag = tag(mkey.as_ref(), "aead", &mut iter);
 
-        let value = vec![0; 16];
-        let mut value = cbor::to_vec(value, item)
-            .map_err(|_| Error::encode_error("put item encode failed"))?;
-        let (atag, buf) = value.split_at_mut(16);
-
-        let atag2 = GimliAead::new(&mkey, &aead_tag).encrypt(b"item", buf);
-        atag.copy_from_slice(&atag2);
-
-        Ok(value)
+        put_inner(mkey.as_ref(), &aead_tag, item)
     }
 
-    pub fn get(&self, tags: &[impl AsRef<str>], value: &mut [u8]) -> Result<packet::Item, Error> {
-        let mkey = self.mkey.get();
+    pub fn get(&mut self, tags: &[impl AsRef<str>], value: &mut [u8]) -> Result<packet::Item, Error> {
+        fn get_inner(mkey: &[u8; 32], tag: &packet::Tag, value: &mut [u8]) -> Result<packet::Item, Error> {
+            if value.len() <= 16 {
+                return Err(Error::aead_failed("get item ciphertext too short"));
+            }
+
+            let (atag, buf) = value.split_at_mut(16);
+            let atag: &[u8] = atag;
+            let atag: &[u8; 16] = atag.try_into().unwrap();
+            let result = GimliAead::new(&mkey, &tag.0).decrypt(b"item", buf, atag);
+
+            if result {
+                cbor::from_slice(buf)
+                    .map_err(|_| Error::decode_error("get item decode failed"))
+            } else {
+                Err(Error::aead_failed("get item aead decrypt failed"))
+            }
+        }
+
+        let mkey = self.mkey.ready();
+        let mkey = mkey.get();
         let mut iter = tags.iter().map(|tag| tag.as_ref());
-        let packet::Tag(aead_tag) = tag(&mkey, "aead", &mut iter);
+        let aead_tag = tag(mkey.as_ref(), "aead", &mut iter);
 
-        if value.len() <= 16 {
-            return Err(Error::aead_failed("get item ciphertext too short"));
-        }
-
-        let (atag, buf) = value.split_at_mut(16);
-        let atag: &[u8] = atag;
-        let atag: &[u8; 16] = atag.try_into().unwrap();
-        let result = GimliAead::new(&mkey, &aead_tag).decrypt(b"item", buf, atag);
-
-        if result {
-            cbor::from_slice(buf)
-                .map_err(|_| Error::decode_error("get item decode failed"))
-        } else {
-            Err(Error::aead_failed("get item aead decrypt failed"))
-        }
+        get_inner(mkey.as_ref(), &aead_tag, value)
     }
 }

@@ -1,64 +1,65 @@
+use std::marker::PhantomData;
 use gimli_aead::GimliAead;
 use gimli_hash::GimliHash;
-use crate::{ Functions, SecBytes };
+use crate::{ SafeFeatures, SafeBytes };
 use crate::util::ScopeZeroed;
 
 
 const SHIELD_LENGTH: usize = 16 * 1024;
 
-pub struct Shield {
-    zero: fn(&mut [u8]),
+pub struct Shield<F: SafeFeatures> {
     prekey: Box<[u8]>,
-    buf: Box<dyn SecBytes>,
-    tag: [u8; 16]
+    buf: F::SafeBytes,
+    tag: [u8; 16],
+    _phantom: PhantomData<F>
 }
 
-pub struct Ready<'a> {
-    shield: &'a mut Shield,
+pub struct Ready<'a, F: SafeFeatures> {
+    shield: &'a mut Shield<F>,
     cachekey: Box<[u8; 32]>
 }
 
-pub struct ReadGuard<'a> {
-    buf: &'a dyn SecBytes
-}
-
-impl Shield {
-    pub fn new(fns: &Functions, mut buf: Box<dyn SecBytes>) -> Shield {
+impl<F: SafeFeatures> Shield<F> {
+    pub fn new(mut buf: F::SafeBytes) -> Shield<F> {
         let mut prekey = vec![0; SHIELD_LENGTH].into_boxed_slice();
         let mut hasher = GimliHash::default();
-        (fns.rng)(&mut prekey[..32]);
+        F::rng_fill(&mut prekey[..32]);
         hasher.update(b"memsec shield prekey");
         hasher.update(&prekey[..32]);
         hasher.finalize(&mut prekey[..]);
 
-        let mut cachekey = ScopeZeroed([0; 32], fns.zero);
-        let cachekey = cachekey.get_mut();
-        let buf_ref = buf.get_mut_and_unlock();
-        let nonce = derive_nonce(buf_ref);
-        derive_key(&prekey, &nonce, cachekey);
-        let tag = GimliAead::new(cachekey, &nonce).encrypt(&[], buf_ref);
-        buf.lock();
+        let tag = {
+            let mut cachekey = ScopeZeroed([0; 32], F::zero_bytes);
+            let cachekey = cachekey.get_mut();
+            let mut buf_ref = buf.get_mut();
+            let buf_ref = buf_ref.as_mut();
+            let nonce = derive_nonce(buf_ref);
+            derive_key(&prekey, &nonce, cachekey);
+            GimliAead::new(cachekey, &nonce).encrypt(b"memsec", buf_ref)
+        };
 
         Shield {
-            zero: fns.zero,
-            prekey, buf, tag
+            prekey, buf, tag,
+            _phantom: PhantomData
         }
     }
 
-    pub fn ready(&mut self) -> Option<Ready<'_>> {
+    pub fn ready(&mut self) -> Ready<'_, F> {
         let mut cachekey = Box::new([0; 32]);
-        let buf_ref = self.buf.get_mut_and_unlock();
-        let nonce = derive_nonce(buf_ref);
-        derive_key(&self.prekey, &nonce, &mut cachekey);
 
-        let result = GimliAead::new(&cachekey, &nonce).decrypt(&[], buf_ref, &self.tag);
+        let result = {
+            let mut buf_ref = self.buf.get_mut();
+            let buf_ref = buf_ref.as_mut();
+            let nonce = derive_nonce(buf_ref);
+            derive_key(&self.prekey, &nonce, &mut cachekey);
 
-        self.buf.lock();
+            GimliAead::new(&cachekey, &nonce).decrypt(b"memsec", buf_ref, &self.tag)
+        };
 
         if result {
-            Some(Ready { shield: self, cachekey })
+            Ready { shield: self, cachekey }
         } else {
-            None
+            panic!("memory shield decrypt failed")
         }
     }
 }
@@ -80,34 +81,20 @@ fn derive_nonce(buf: &[u8]) -> [u8; 16] {
     nonce
 }
 
-impl Ready<'_> {
-    pub fn get(&self) -> ReadGuard<'_> {
-        ReadGuard { buf: &*self.shield.buf }
+impl<F: SafeFeatures> Ready<'_, F> {
+    pub fn get<'a>(&'a self) -> impl AsRef<[u8; 32]> + 'a {
+        self.shield.buf.get()
     }
 }
 
-impl Drop for Ready<'_> {
+impl<F: SafeFeatures> Drop for Ready<'_, F> {
     fn drop(&mut self) {
-        let buf_ref = self.shield.buf.get_mut_and_unlock();
+        let mut buf_ref = self.shield.buf.get_mut();
+        let buf_ref = buf_ref.as_mut();
         let nonce = derive_nonce(buf_ref);
 
-        let tag = GimliAead::new(&self.cachekey, &nonce).encrypt(&[], buf_ref);
+        let tag = GimliAead::new(&self.cachekey, &nonce).encrypt(b"memsec", buf_ref);
         self.shield.tag.copy_from_slice(&tag);
-        self.shield.buf.lock();
-        (self.shield.zero)(&mut self.cachekey[..]);
-    }
-}
-
-impl std::ops::Deref for ReadGuard<'_> {
-    type Target = [u8; 32];
-
-    fn deref(&self) -> &Self::Target {
-        self.buf.get_and_unlock()
-    }
-}
-
-impl Drop for ReadGuard<'_> {
-    fn drop(&mut self) {
-        self.buf.lock();
+        F::zero_bytes(&mut self.cachekey[..]);
     }
 }

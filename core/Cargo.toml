@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }
-cbor4ii = { version = "0.2", features = [ "serde1", "use_std" ] }
+cbor4ii = { version = "0.3", features = [ "serde1", "use_std" ] }
 serde_bytes = "0.11"
 gimli-permutation = { version = "0.2" }
 gimli-hash = "0.2"
