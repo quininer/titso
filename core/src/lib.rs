@@ -4,6 +4,7 @@ mod shield;
 mod error;
 pub mod packet;
 
+use std::fs;
 use std::marker::PhantomData;
 use cbor4ii::serde as cbor;
 use gimli_aead::GimliAead;
@@ -186,11 +187,13 @@ impl<F: SafeFeatures> Core<F> {
     }
 
     pub fn get(&mut self, tags: &[impl AsRef<str>], value: &mut [u8]) -> Result<packet::Item, Error> {
-        fn get_inner(mkey: &[u8; 32], tag: &packet::Tag, value: &mut [u8]) -> Result<packet::Item, Error> {
+        fn get_inner<F: SafeFeatures>(mkey: &[u8; 32], tag: &packet::Tag, value: &mut [u8]) -> Result<packet::Item, Error> {
             if value.len() <= 16 {
                 return Err(Error::aead_failed("get item ciphertext too short"));
             }
 
+            let mut value = ScopeZeroed(value, F::zero_bytes);
+            let value = value.get_mut();
             let (atag, buf) = value.split_at_mut(16);
             let atag: &[u8] = atag;
             let atag: &[u8; 16] = atag.try_into().unwrap();
@@ -209,6 +212,6 @@ impl<F: SafeFeatures> Core<F> {
         let mut iter = tags.iter().map(|tag| tag.as_ref());
         let aead_tag = tag(mkey.as_ref(), "aead", &mut iter);
 
-        get_inner(mkey.as_ref(), &aead_tag, value)
+        get_inner::<F>(mkey.as_ref(), &aead_tag, value)
     }
 }

@@ -7,4 +7,17 @@ edition = "2021"
 
 [dependencies]
 argh = "0.1"
+anyhow = "1"
+
+directories = "4"
+crossterm = "0.26"
+scopeguard = "1"
+
 titso-core = { path = "../core" }
+serde = { version = "1", features = ["derive"] }
+cbor4ii = { version = "0.3", features = [ "serde1", "use_std" ] }
+memsec = { version = "0.6", features = [ "use_os", "alloc" ] }
+seckey = { version = "0.12" }
+gimli-hash = { version = "0.2" }
+getrandom = "0.2"
+serde_bytes = "0.11"
