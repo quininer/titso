@@ -4,7 +4,6 @@ mod shield;
 mod error;
 pub mod packet;
 
-use std::fs;
 use std::marker::PhantomData;
 use cbor4ii::serde as cbor;
 use gimli_aead::GimliAead;

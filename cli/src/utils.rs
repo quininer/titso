@@ -53,3 +53,11 @@ impl AsMut<[u8; 32]> for SafeBufMut<'_> {
         self.0.deref_mut().try_into().unwrap()
     }
 }
+
+pub fn default_chars() -> Vec<char> {
+    "0123456789\
+        abcdefghijklmnopqrstuvwxyz\
+        ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+        .;-=_+?~!@#\
+    ".chars().collect()
+}

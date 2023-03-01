@@ -11,25 +11,26 @@ pub struct Storage {
 type StoreList<'a> = Vec<(&'a Bytes, &'a Bytes)>;
 
 impl Storage {
-    pub fn get(&self, key: &packet::Tag) -> anyhow::Result<Option<packet::Item>> {
+    pub fn new(config_path: PathBuf) -> Storage {
+        Storage { config_path }
+    }
+
+    pub fn get(&self, key: &packet::Tag) -> anyhow::Result<Option<Vec<u8>>> {
         let mut buf = Vec::new();
         let list = read_list(&self.config_path, &mut buf)?;
 
-        if let Some((_, value)) = list.iter().find(|(k, _)| &key.0 == k.as_ref()) {
-            let item: packet::Item = cbor4ii::serde::from_slice(&value)?;
-            Ok(Some(item))
-        } else {
-            Ok(None)
-        }
+        let item = list.iter()
+            .find(|(k, _)| &key.0 == k.as_ref())
+            .map(|(_, v)| Vec::from(&***v));
+        Ok(item)
     }
 
-    pub fn set(&self, key: &packet::Tag, value: &packet::Item) -> anyhow::Result<()> {
+    pub fn set(&self, key: &packet::Tag, value: &[u8]) -> anyhow::Result<()> {
         let mut buf = Vec::new();
         let mut list = read_list(&self.config_path, &mut buf)?;
 
-        let itembuf = cbor4ii::serde::to_vec(Vec::new(), value)?;
         list.retain(|(k, _)| &key.0 != k.as_ref());
-        list.push((Bytes::new(&key.0), Bytes::new(&itembuf)));
+        list.push((Bytes::new(&key.0), Bytes::new(value)));
 
         write_list(&self.config_path, &list)
     }
