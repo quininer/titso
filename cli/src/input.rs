@@ -63,6 +63,9 @@ pub fn asktags<W: io::Write>(mut stdout: W) -> anyhow::Result<Vec<String>> {
         terminal::Clear(terminal::ClearType::CurrentLine)
     )?;
 
+    tags.sort_unstable();
+    tags.dedup();
+
     Ok(tags)
 }
 

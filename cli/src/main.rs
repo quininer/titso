@@ -219,10 +219,15 @@ fn main() -> anyhow::Result<()> {
                 )?;
             }
 
+            let padding = {
+                let mut pad_len = [0];
+                let _ = getrandom::getrandom(&mut pad_len);
+                vec![0; pad_len as usize % 32]
+            };
+
             let item = packet::Item {
-                password,
+                password, padding,
                 note: args.note.unwrap_or_default(),
-                padding: vec![]
             };
 
             let itembuf = core.put(&tags, &item)?;
