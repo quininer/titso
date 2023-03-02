@@ -377,6 +377,7 @@ dependencies = [
  "memsec",
  "scopeguard",
  "seckey",
+ "serde",
  "serde_bytes",
  "titso-core",
 ]
