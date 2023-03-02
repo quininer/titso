@@ -222,7 +222,7 @@ fn main() -> anyhow::Result<()> {
             let padding = {
                 let mut pad_len = [0];
                 let _ = getrandom::getrandom(&mut pad_len);
-                vec![0; pad_len as usize % 32]
+                vec![0; pad_len[0] as usize % 32]
             };
 
             let item = packet::Item {

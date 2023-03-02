@@ -53,7 +53,7 @@ pub fn asktags<W: io::Write>(mut stdout: W) -> anyhow::Result<Vec<String>> {
 
         queue!(stdout, style::Print("\r\n"))?;
 
-        tags.push(strbuf.clone());
+        tags.push(strbuf.trim().to_owned());
         strbuf.clear();
     }
 
