@@ -165,7 +165,9 @@ impl<F: SafeFeatures> Core<F> {
     }
 
     pub fn put(&mut self, tags: &[impl AsRef<str>], item: &packet::Item) -> Result<Vec<u8>, Error> {
-        fn put_inner(mkey: &[u8; 32], tag: &packet::Tag, item: &packet::Item) -> Result<Vec<u8>, Error> {
+        fn put_inner(mkey: &[u8; 32], tag: &packet::Tag, item: &packet::Item)
+            -> Result<Vec<u8>, Error>
+        {
             let value = vec![0; 16];
             let mut value = cbor::to_vec(value, item)
                 .map_err(|_| Error::encode_error("put item encode failed"))?;
@@ -186,7 +188,9 @@ impl<F: SafeFeatures> Core<F> {
     }
 
     pub fn get(&mut self, tags: &[impl AsRef<str>], value: &mut [u8]) -> Result<packet::Item, Error> {
-        fn get_inner<F: SafeFeatures>(mkey: &[u8; 32], tag: &packet::Tag, value: &mut [u8]) -> Result<packet::Item, Error> {
+        fn get_inner<F: SafeFeatures>(mkey: &[u8; 32], tag: &packet::Tag, value: &mut [u8])
+            -> Result<packet::Item, Error>
+        {
             if value.len() <= 16 {
                 return Err(Error::aead_failed("get item ciphertext too short"));
             }

@@ -3,7 +3,9 @@ name = "titso-cli"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "titso"
+path = "src/main.rs"
 
 [dependencies]
 argh = "0.1"
@@ -14,7 +16,6 @@ crossterm = "0.26"
 scopeguard = "1"
 
 titso-core = { path = "../core" }
-serde = { version = "1", features = ["derive"] }
 cbor4ii = { version = "0.3", features = [ "serde1", "use_std" ] }
 memsec = { version = "0.6", features = [ "use_os", "alloc" ] }
 seckey = { version = "0.12" }
